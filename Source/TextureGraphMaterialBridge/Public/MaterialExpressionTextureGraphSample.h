@@ -5,6 +5,8 @@
 #include "TextureGraph.h"
 #include "MaterialExpressionTextureGraphSample.generated.h"
 
+class UEdGraphNode;
+
 UCLASS(collapsecategories, hidecategories = Object, DisplayName = "Texture Graph Sample")
 class TEXTUREGRAPHMATERIALBRIDGE_API UMaterialExpressionTextureGraphSample : public UMaterialExpressionTextureSample
 {
@@ -35,9 +37,11 @@ public:
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual FText GetKeywords() const override;
+	virtual TSharedPtr<class SGraphNodeMaterialBase> CreateCustomGraphNodeWidget() override;
 	virtual FText GetCreationName() const override;
 	virtual FText GetCreationDescription() const override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UEdGraphNode* GetEditorGraphNode() const;
 #endif
 
 private:

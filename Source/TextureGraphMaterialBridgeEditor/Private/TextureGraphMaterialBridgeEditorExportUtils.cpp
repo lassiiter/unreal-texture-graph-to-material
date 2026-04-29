@@ -112,6 +112,28 @@ namespace UE::TextureGraphMaterialBridgeEditor
 		return PreparedTextureGraph;
 	}
 
+	UTextureGraphBase* CreatePreparedExportTextureGraphInstance(UTextureGraphBase* SourceTextureGraph)
+	{
+		if (!SourceTextureGraph)
+		{
+			return nullptr;
+		}
+
+		UTextureGraphInstance* PreparedTextureGraph = NewObject<UTextureGraphInstance>(GetTransientPackage(), NAME_None, RF_Standalone);
+		if (!PreparedTextureGraph)
+		{
+			return nullptr;
+		}
+
+		PreparedTextureGraph->Construct(FString());
+
+		TObjectPtr<UTextureGraphBase> ParentTextureGraph = SourceTextureGraph;
+		PreparedTextureGraph->SetParent(ParentTextureGraph);
+		PreparedTextureGraph->Initialize();
+		FTG_HelperFunctions::InitTargets(PreparedTextureGraph);
+		return PreparedTextureGraph;
+	}
+
 	AsyncInt ExportPreparedTextureGraphAsync(UTextureGraphBase* PreparedTextureGraph, FExportSettings& ExportSettings)
 	{
 		TSharedRef<FExportSettings> SessionSettings = MakeShared<FExportSettings>(ExportSettings);

@@ -6,4 +6,10 @@ FTextureGraphMaterialBridgeEditorHooks::FCreateTextureGraphOutputNodeWidget& FTe
 	static FCreateTextureGraphOutputNodeWidget CreateTextureGraphOutputNodeWidget;
 	return CreateTextureGraphOutputNodeWidget;
 }
+
+FTextureGraphMaterialBridgeEditorHooks::FCreateTextureGraphSampleNodeWidget& FTextureGraphMaterialBridgeEditorHooks::OnCreateTextureGraphSampleNodeWidget()
+{
+	static FCreateTextureGraphSampleNodeWidget CreateTextureGraphSampleNodeWidget;
+	return CreateTextureGraphSampleNodeWidget;
+}
 #endif

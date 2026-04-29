@@ -557,7 +557,43 @@ void FTextureGraphMaterialBridgeMaterialCreationService::CreateLinkedMaterials(T
 			continue;
 		}
 
-		UTextureGraphBase* PreparedExportTextureGraph = UE::TextureGraphMaterialBridgeEditor::CreatePreparedExportTextureGraph(ExportSource.TextureGraph);
+		if (ExportSource.bExportSourceDirectly)
+		{
+			FExportSettings ExportSettings;
+			const FString SavedTextureGraphPath = TextureGraph->GetPathName();
+
+			UE_LOG(
+				LogTextureGraphMaterialBridgeMaterialCreationService,
+				Log,
+				TEXT("TextureGraphMaterialBridge exporting '%s' directly using %s '%s' before linked material creation."),
+				*SavedTextureGraphPath,
+				ExportSource.SourceDescription,
+				*ExportSource.TextureGraph->GetPathName());
+
+			FTG_HelperFunctions::ExportAsync(ExportSource.TextureGraph, TEXT(""), TEXT(""), ExportSettings, false, true, false, true)
+				.then(
+					[TextureGraph = TWeakObjectPtr<UTextureGraph>(TextureGraph)](int32 NumExports) mutable
+			{
+				AsyncTask(
+					ENamedThreads::GameThread,
+					[TextureGraph = MoveTemp(TextureGraph),
+					 NumExports]() mutable
+				{
+					if (!TextureGraph.IsValid())
+					{
+						return;
+					}
+
+					UE::TextureGraphMaterialBridgeEditor::HandleCreateLinkedMaterialAfterExport(TextureGraph.Get(), NumExports);
+				});
+
+				return NumExports;
+			});
+
+			continue;
+		}
+
+		UTextureGraphBase* PreparedExportTextureGraph = UE::TextureGraphMaterialBridgeEditor::CreatePreparedExportTextureGraphInstance(ExportSource.TextureGraph);
 		UE::TextureGraphMaterialBridgeEditor::CleanupExportTextureGraph(ExportSource.TextureGraph, ExportSource.bRequiresCleanup);
 		if (!PreparedExportTextureGraph)
 		{
@@ -575,7 +611,7 @@ void FTextureGraphMaterialBridgeMaterialCreationService::CreateLinkedMaterials(T
 		UE_LOG(
 			LogTextureGraphMaterialBridgeMaterialCreationService,
 			Verbose,
-			TEXT("TextureGraphMaterialBridge exporting '%s' using %s '%s' before linked material creation."),
+			TEXT("TextureGraphMaterialBridge exporting '%s' using transient instance from %s '%s' before linked material creation."),
 			*SavedTextureGraphPath,
 			ExportSource.SourceDescription,
 			*ExportTextureGraph->GetPathName());

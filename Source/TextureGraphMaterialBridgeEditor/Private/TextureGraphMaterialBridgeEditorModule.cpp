@@ -4,7 +4,9 @@
 #include "TextureGraphMaterialBridgeMaterialCreationService.h"
 #include "TextureGraphMaterialBridgeSaveService.h"
 #include "MaterialExpressionTextureGraphOutput.h"
+#include "MaterialExpressionTextureGraphSample.h"
 #include "SGraphNodeMaterialTextureGraphOutput.h"
+#include "SGraphNodeMaterialTextureGraphSample.h"
 #include "MaterialGraph/MaterialGraphNode.h"
 
 namespace
@@ -24,6 +26,22 @@ TSharedPtr<SGraphNodeMaterialBase> CreateTextureGraphOutputNodeWidget(UMaterialE
 
 	return SNew(SGraphNodeMaterialTextureGraphOutput, MaterialGraphNode);
 }
+
+TSharedPtr<SGraphNodeMaterialBase> CreateTextureGraphSampleNodeWidget(UMaterialExpressionTextureGraphSample* Expression)
+{
+	if (!Expression)
+	{
+		return nullptr;
+	}
+
+	UMaterialGraphNode* MaterialGraphNode = Cast<UMaterialGraphNode>(Expression->GetEditorGraphNode());
+	if (!MaterialGraphNode)
+	{
+		return nullptr;
+	}
+
+	return SNew(SGraphNodeMaterialTextureGraphSample, MaterialGraphNode);
+}
 }
 
 FTextureGraphMaterialBridgeEditorModule::~FTextureGraphMaterialBridgeEditorModule()
@@ -38,6 +56,7 @@ FTextureGraphMaterialBridgeEditorModule::~FTextureGraphMaterialBridgeEditorModul
 void FTextureGraphMaterialBridgeEditorModule::StartupModule()
 {
 	FTextureGraphMaterialBridgeEditorHooks::OnCreateTextureGraphOutputNodeWidget().BindStatic(&CreateTextureGraphOutputNodeWidget);
+	FTextureGraphMaterialBridgeEditorHooks::OnCreateTextureGraphSampleNodeWidget().BindStatic(&CreateTextureGraphSampleNodeWidget);
 
 	MaterialCreationService = new FTextureGraphMaterialBridgeMaterialCreationService();
 
@@ -58,6 +77,7 @@ void FTextureGraphMaterialBridgeEditorModule::ShutdownModule()
 	MaterialCreationService = nullptr;
 
 	FTextureGraphMaterialBridgeEditorHooks::OnCreateTextureGraphOutputNodeWidget().Unbind();
+	FTextureGraphMaterialBridgeEditorHooks::OnCreateTextureGraphSampleNodeWidget().Unbind();
 }
 
 FTextureGraphMaterialBridgeMaterialCreationService& FTextureGraphMaterialBridgeEditorModule::GetMaterialCreationService()

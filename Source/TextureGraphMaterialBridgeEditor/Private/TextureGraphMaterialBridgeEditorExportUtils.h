@@ -19,6 +19,7 @@ namespace UE::TextureGraphMaterialBridgeEditor
 
 	FResolvedTextureGraphExportSource ResolveExportTextureGraph(UTextureGraph* SavedTextureGraph);
 	UTextureGraphBase* CreatePreparedExportTextureGraph(UTextureGraphBase* SourceTextureGraph);
+	UTextureGraphBase* CreatePreparedExportTextureGraphInstance(UTextureGraphBase* SourceTextureGraph);
 	AsyncInt ExportPreparedTextureGraphAsync(UTextureGraphBase* PreparedTextureGraph, FExportSettings& ExportSettings);
 	void CleanupExportTextureGraph(UTextureGraphBase* TextureGraph, bool bRequiresCleanup);
 	void EnsureTextureGraphTargetsInitialized(UTextureGraphBase* TextureGraph);

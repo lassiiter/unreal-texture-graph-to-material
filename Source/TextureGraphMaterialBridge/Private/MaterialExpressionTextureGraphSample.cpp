@@ -1,6 +1,8 @@
 #include "MaterialExpressionTextureGraphSample.h"
 
+#include "TextureGraphMaterialBridgeEditorHooks.h"
 #include "TextureGraphMaterialBridgeExpressionUtils.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EditorSupportDelegates.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
@@ -133,6 +135,16 @@ FText UMaterialExpressionTextureGraphSample::GetKeywords() const
 	return LOCTEXT("TextureGraphSampleKeywords", "texture graph sample export bridge material texture sampler");
 }
 
+TSharedPtr<SGraphNodeMaterialBase> UMaterialExpressionTextureGraphSample::CreateCustomGraphNodeWidget()
+{
+	if (FTextureGraphMaterialBridgeEditorHooks::OnCreateTextureGraphSampleNodeWidget().IsBound())
+	{
+		return FTextureGraphMaterialBridgeEditorHooks::OnCreateTextureGraphSampleNodeWidget().Execute(this);
+	}
+
+	return nullptr;
+}
+
 FText UMaterialExpressionTextureGraphSample::GetCreationName() const
 {
 	return GetNodeTitleText();
@@ -168,6 +180,11 @@ void UMaterialExpressionTextureGraphSample::PostEditChangeProperty(FPropertyChan
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+UEdGraphNode* UMaterialExpressionTextureGraphSample::GetEditorGraphNode() const
+{
+	return GraphNode;
 }
 
 void UMaterialExpressionTextureGraphSample::RefreshOutputSelection()
