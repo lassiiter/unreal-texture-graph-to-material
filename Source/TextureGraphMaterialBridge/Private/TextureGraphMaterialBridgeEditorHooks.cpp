@@ -1,0 +1,9 @@
+#include "TextureGraphMaterialBridgeEditorHooks.h"
+
+#if WITH_EDITOR
+FTextureGraphMaterialBridgeEditorHooks::FCreateTextureGraphOutputNodeWidget& FTextureGraphMaterialBridgeEditorHooks::OnCreateTextureGraphOutputNodeWidget()
+{
+	static FCreateTextureGraphOutputNodeWidget CreateTextureGraphOutputNodeWidget;
+	return CreateTextureGraphOutputNodeWidget;
+}
+#endif

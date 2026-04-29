@@ -1,0 +1,31 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "Texture Graph Material Bridge",
+  "Description": "Bridges Texture Graph exports into material graphs with a texture-object node that resolves existing Texture Graph export outputs.",
+  "Category": "Rendering",
+  "CreatedBy": "OpenAI Codex",
+  "CanContainContent": false,
+  "IsBetaVersion": true,
+  "Installed": false,
+  "EngineVersion": "5.7.0",
+  "Modules": [
+    {
+      "Name": "TextureGraphMaterialBridge",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    },
+    {
+      "Name": "TextureGraphMaterialBridgeEditor",
+      "Type": "Editor",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "TextureGraph",
+      "Enabled": true
+    }
+  ]
+}
