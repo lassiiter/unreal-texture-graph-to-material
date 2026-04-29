@@ -63,7 +63,62 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 		return;
 	}
 
+	if (ExportSource.bExportSourceDirectly)
+	{
+		FExportSettings ExportSettings;
+		FString SavedTextureGraphPath = SavedTextureGraph->GetPathName();
+
+		UE_LOG(
+			LogTextureGraphMaterialBridgeSaveService,
+			Log,
+			TEXT("TextureGraphMaterialBridge exporting '%s' directly using %s '%s'."),
+			*SavedTextureGraphPath,
+			ExportSource.SourceDescription,
+			*ExportSource.TextureGraph->GetPathName());
+
+		FTG_HelperFunctions::ExportAsync(ExportSource.TextureGraph, TEXT(""), TEXT(""), ExportSettings, false, true, false, true)
+			.then(
+				[MaterialPaths = MoveTemp(ReferencingMaterialPaths),
+				 SavedTextureGraphPath,
+				 SavedTextureGraph = TWeakObjectPtr<UTextureGraph>(SavedTextureGraph)](int32 NumExports) mutable
+		{
+			AsyncTask(
+				ENamedThreads::GameThread,
+				[MaterialPaths = MoveTemp(MaterialPaths),
+				 SavedTextureGraphPath = MoveTemp(SavedTextureGraphPath),
+				 SavedTextureGraph = MoveTemp(SavedTextureGraph),
+				 NumExports]() mutable
+			{
+				if (NumExports > 0)
+				{
+					UE_LOG(
+						LogTextureGraphMaterialBridgeSaveService,
+						Verbose,
+						TEXT("TextureGraphMaterialBridge exported %d texture(s) for '%s'; recompiling %d referencing material(s)."),
+						NumExports,
+						*SavedTextureGraphPath,
+						MaterialPaths.Num());
+
+					RecompileMaterials(MaterialPaths, SavedTextureGraph.Get());
+				}
+				else
+				{
+					UE_LOG(
+						LogTextureGraphMaterialBridgeSaveService,
+						Warning,
+						TEXT("TextureGraphMaterialBridge skipped material recompilation for '%s' because the save-triggered export produced no textures."),
+						*SavedTextureGraphPath);
+				}
+			});
+
+			return NumExports;
+		});
+
+		return;
+	}
+
 	UTextureGraphBase* PreparedExportTextureGraph = UE::TextureGraphMaterialBridgeEditor::CreatePreparedExportTextureGraph(ExportSource.TextureGraph);
+	UE::TextureGraphMaterialBridgeEditor::CleanupExportTextureGraph(ExportSource.TextureGraph, ExportSource.bRequiresCleanup);
 	if (!PreparedExportTextureGraph)
 	{
 		UE_LOG(LogTextureGraphMaterialBridgeSaveService, Warning, TEXT("TextureGraphMaterialBridge could not prepare an export graph for '%s'."), *SavedTextureGraph->GetPathName());

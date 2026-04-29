@@ -1,5 +1,7 @@
 #include "TextureGraphMaterialBridgeEditorExportUtils.h"
 
+#include "Async/Async.h"
+#include "Export/TextureExporter.h"
 #include "ITG_Editor.h"
 #include "Model/Mix/MixSettings.h"
 #include "TG_HelperFunctions.h"
@@ -12,11 +14,80 @@
 
 namespace UE::TextureGraphMaterialBridgeEditor
 {
+	namespace
+	{
+		bool ReferencesSavedTextureGraph(const ITG_Editor* TextureGraphEditor, const UTextureGraph* SavedTextureGraph)
+		{
+			if (!TextureGraphEditor || !SavedTextureGraph)
+			{
+				return false;
+			}
+
+			const TArray<UObject*>* EditedObjects = TextureGraphEditor->GetObjectsCurrentlyBeingEdited();
+			if (!EditedObjects)
+			{
+				return false;
+			}
+
+			const FString SavedTextureGraphPath = SavedTextureGraph->GetPathName();
+			const UPackage* SavedPackage = SavedTextureGraph->GetOutermost();
+			for (const UObject* EditedObject : *EditedObjects)
+			{
+				if (!EditedObject)
+				{
+					continue;
+				}
+
+				if (EditedObject == SavedTextureGraph || EditedObject->GetPathName() == SavedTextureGraphPath || EditedObject->GetOutermost() == SavedPackage)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		UTextureGraphBase* ResolveOpenEditorTextureGraph(IAssetEditorInstance* EditorInstance, const UTextureGraph* SavedTextureGraph)
+		{
+			if (!EditorInstance || EditorInstance->GetEditorName() != FName(TEXT("TG_Editor")))
+			{
+				return nullptr;
+			}
+
+			ITG_Editor* TextureGraphEditor = static_cast<ITG_Editor*>(EditorInstance);
+			if (!ReferencesSavedTextureGraph(TextureGraphEditor, SavedTextureGraph))
+			{
+				return nullptr;
+			}
+
+			return TextureGraphEditor ? Cast<UTextureGraphBase>(TextureGraphEditor->GetTextureGraphInterface()) : nullptr;
+		}
+	}
+
 	FResolvedTextureGraphExportSource ResolveExportTextureGraph(UTextureGraph* SavedTextureGraph)
 	{
+		if (SavedTextureGraph && GEditor)
+		{
+			if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+			{
+				if (UTextureGraphBase* EditorTextureGraph = ResolveOpenEditorTextureGraph(AssetEditorSubsystem->FindEditorForAsset(SavedTextureGraph, false), SavedTextureGraph))
+				{
+					return { EditorTextureGraph, false, true, TEXT("open editor graph") };
+				}
+
+				for (IAssetEditorInstance* EditorInstance : AssetEditorSubsystem->GetAllOpenEditors())
+				{
+					if (UTextureGraphBase* EditorTextureGraph = ResolveOpenEditorTextureGraph(EditorInstance, SavedTextureGraph))
+					{
+						return { EditorTextureGraph, false, true, TEXT("open editor graph") };
+					}
+				}
+			}
+		}
+
 		if (SavedTextureGraph)
 		{
-			return { SavedTextureGraph, false, TEXT("saved asset graph") };
+			return { SavedTextureGraph, false, false, TEXT("saved asset graph") };
 		}
 
 		return {};

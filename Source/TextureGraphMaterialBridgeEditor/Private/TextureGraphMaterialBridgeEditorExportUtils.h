@@ -13,6 +13,7 @@ namespace UE::TextureGraphMaterialBridgeEditor
 	{
 		UTextureGraphBase* TextureGraph = nullptr;
 		bool bRequiresCleanup = false;
+		bool bExportSourceDirectly = false;
 		const TCHAR* SourceDescription = TEXT("unresolved");
 	};
 

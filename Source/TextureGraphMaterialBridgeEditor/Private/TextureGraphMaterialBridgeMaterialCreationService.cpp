@@ -558,6 +558,7 @@ void FTextureGraphMaterialBridgeMaterialCreationService::CreateLinkedMaterials(T
 		}
 
 		UTextureGraphBase* PreparedExportTextureGraph = UE::TextureGraphMaterialBridgeEditor::CreatePreparedExportTextureGraph(ExportSource.TextureGraph);
+		UE::TextureGraphMaterialBridgeEditor::CleanupExportTextureGraph(ExportSource.TextureGraph, ExportSource.bRequiresCleanup);
 		if (!PreparedExportTextureGraph)
 		{
 			const FText WarningMessage = FText::Format(
