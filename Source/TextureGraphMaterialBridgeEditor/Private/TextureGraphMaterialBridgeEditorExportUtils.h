@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "Helper/Promise.h"
 
-class UTextureGraph;
 class UTextureGraphBase;
 class FExportSettings;
 
@@ -17,7 +16,7 @@ namespace UE::TextureGraphMaterialBridgeEditor
 		const TCHAR* SourceDescription = TEXT("unresolved");
 	};
 
-	FResolvedTextureGraphExportSource ResolveExportTextureGraph(UTextureGraph* SavedTextureGraph);
+	FResolvedTextureGraphExportSource ResolveExportTextureGraph(UTextureGraphBase* SavedTextureGraph);
 	UTextureGraphBase* CreatePreparedExportTextureGraph(UTextureGraphBase* SourceTextureGraph);
 	UTextureGraphBase* CreatePreparedExportTextureGraphInstance(UTextureGraphBase* SourceTextureGraph);
 	AsyncInt ExportPreparedTextureGraphAsync(UTextureGraphBase* PreparedTextureGraph, FExportSettings& ExportSettings);

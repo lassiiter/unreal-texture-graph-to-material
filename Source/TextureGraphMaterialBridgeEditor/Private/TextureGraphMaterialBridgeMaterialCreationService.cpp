@@ -187,7 +187,7 @@ namespace UE::TextureGraphMaterialBridgeEditor
 		}
 	}
 
-	bool TryGetCanonicalOutputName(UTextureGraph* TextureGraph, FName InOutputName, FName& OutCanonicalOutputName)
+	bool TryGetCanonicalOutputName(UTextureGraphBase* TextureGraph, FName InOutputName, FName& OutCanonicalOutputName)
 	{
 		const UTG_Expression_Output* OutputExpression = UE::TextureGraphMaterialBridge::FindTextureGraphOutputExpression(TextureGraph, InOutputName, nullptr);
 		if (!OutputExpression)
@@ -199,7 +199,7 @@ namespace UE::TextureGraphMaterialBridgeEditor
 		return !OutCanonicalOutputName.IsNone();
 	}
 
-	FTextureGraphMaterialPlan BuildMaterialPlan(UTextureGraph* TextureGraph)
+	FTextureGraphMaterialPlan BuildMaterialPlan(UTextureGraphBase* TextureGraph)
 	{
 		FTextureGraphMaterialPlan Plan;
 		if (!TextureGraph)
@@ -306,7 +306,7 @@ namespace UE::TextureGraphMaterialBridgeEditor
 		return Plan;
 	}
 
-	TArray<FResolvedTextureGraphMaterialBinding> ResolveMaterialBindings(UTextureGraph* TextureGraph, const FTextureGraphMaterialPlan& Plan)
+	TArray<FResolvedTextureGraphMaterialBinding> ResolveMaterialBindings(UTextureGraphBase* TextureGraph, const FTextureGraphMaterialPlan& Plan)
 	{
 		TArray<FResolvedTextureGraphMaterialBinding> ResolvedBindings;
 		if (!TextureGraph)
@@ -361,7 +361,7 @@ namespace UE::TextureGraphMaterialBridgeEditor
 		ShowNotification(Message, SNotificationItem::CS_Success);
 	}
 
-	UMaterial* CreateMaterialAsset(UTextureGraph* TextureGraph)
+	UMaterial* CreateMaterialAsset(UTextureGraphBase* TextureGraph)
 	{
 		if (!TextureGraph)
 		{
@@ -385,7 +385,7 @@ namespace UE::TextureGraphMaterialBridgeEditor
 			TEXT("TextureGraphMaterialBridge")));
 	}
 
-	UMaterialExpressionTextureGraphSample* CreateTextureGraphSampleExpression(UMaterial* Material, UTextureGraph* TextureGraph, FName OutputName, int32 NodePosX, int32 NodePosY)
+	UMaterialExpressionTextureGraphSample* CreateTextureGraphSampleExpression(UMaterial* Material, UTextureGraphBase* TextureGraph, FName OutputName, int32 NodePosX, int32 NodePosY)
 	{
 		UMaterialExpressionTextureGraphSample* TextureGraphSample = Cast<UMaterialExpressionTextureGraphSample>(
 			UMaterialEditingLibrary::CreateMaterialExpression(Material, UMaterialExpressionTextureGraphSample::StaticClass(), NodePosX, NodePosY));
@@ -441,7 +441,7 @@ namespace UE::TextureGraphMaterialBridgeEditor
 		}
 	}
 
-	void CreateLinkedMaterialFromResolvedBindings(UTextureGraph* TextureGraph, const TArray<FResolvedTextureGraphMaterialBinding>& ResolvedBindings)
+	void CreateLinkedMaterialFromResolvedBindings(UTextureGraphBase* TextureGraph, const TArray<FResolvedTextureGraphMaterialBinding>& ResolvedBindings)
 	{
 		UMaterial* Material = CreateMaterialAsset(TextureGraph);
 		if (!Material)
@@ -505,7 +505,7 @@ namespace UE::TextureGraphMaterialBridgeEditor
 		FinalizeMaterialAsset(Material);
 	}
 
-	void HandleCreateLinkedMaterialAfterExport(UTextureGraph* TextureGraph, int32 NumExports)
+	void HandleCreateLinkedMaterialAfterExport(UTextureGraphBase* TextureGraph, int32 NumExports)
 	{
 		if (!TextureGraph)
 		{
@@ -537,9 +537,9 @@ namespace UE::TextureGraphMaterialBridgeEditor
 	}
 }
 
-void FTextureGraphMaterialBridgeMaterialCreationService::CreateLinkedMaterials(TConstArrayView<UTextureGraph*> TextureGraphs) const
+void FTextureGraphMaterialBridgeMaterialCreationService::CreateLinkedMaterials(TConstArrayView<UTextureGraphBase*> TextureGraphs) const
 {
-	for (UTextureGraph* TextureGraph : TextureGraphs)
+	for (UTextureGraphBase* TextureGraph : TextureGraphs)
 	{
 		if (!TextureGraph)
 		{
@@ -572,7 +572,7 @@ void FTextureGraphMaterialBridgeMaterialCreationService::CreateLinkedMaterials(T
 
 			FTG_HelperFunctions::ExportAsync(ExportSource.TextureGraph, TEXT(""), TEXT(""), ExportSettings, false, true, false, true)
 				.then(
-					[TextureGraph = TWeakObjectPtr<UTextureGraph>(TextureGraph)](int32 NumExports) mutable
+					[TextureGraph = TWeakObjectPtr<UTextureGraphBase>(TextureGraph)](int32 NumExports) mutable
 			{
 				AsyncTask(
 					ENamedThreads::GameThread,
@@ -593,7 +593,9 @@ void FTextureGraphMaterialBridgeMaterialCreationService::CreateLinkedMaterials(T
 			continue;
 		}
 
-		UTextureGraphBase* PreparedExportTextureGraph = UE::TextureGraphMaterialBridgeEditor::CreatePreparedExportTextureGraphInstance(ExportSource.TextureGraph);
+		UTextureGraphBase* PreparedExportTextureGraph = Cast<UTextureGraphInstance>(ExportSource.TextureGraph)
+			? UE::TextureGraphMaterialBridgeEditor::CreatePreparedExportTextureGraph(ExportSource.TextureGraph)
+			: UE::TextureGraphMaterialBridgeEditor::CreatePreparedExportTextureGraphInstance(ExportSource.TextureGraph);
 		UE::TextureGraphMaterialBridgeEditor::CleanupExportTextureGraph(ExportSource.TextureGraph, ExportSource.bRequiresCleanup);
 		if (!PreparedExportTextureGraph)
 		{
@@ -611,7 +613,7 @@ void FTextureGraphMaterialBridgeMaterialCreationService::CreateLinkedMaterials(T
 		UE_LOG(
 			LogTextureGraphMaterialBridgeMaterialCreationService,
 			Verbose,
-			TEXT("TextureGraphMaterialBridge exporting '%s' using transient instance from %s '%s' before linked material creation."),
+			TEXT("TextureGraphMaterialBridge exporting '%s' using prepared source from %s '%s' before linked material creation."),
 			*SavedTextureGraphPath,
 			ExportSource.SourceDescription,
 			*ExportTextureGraph->GetPathName());
@@ -619,7 +621,7 @@ void FTextureGraphMaterialBridgeMaterialCreationService::CreateLinkedMaterials(T
 		UE::TextureGraphMaterialBridgeEditor::ExportPreparedTextureGraphAsync(ExportTextureGraph.Get(), ExportSettings)
 			.then(
 				[ExportTextureGraph = MoveTemp(ExportTextureGraph),
-				 TextureGraph = TWeakObjectPtr<UTextureGraph>(TextureGraph),
+				 TextureGraph = TWeakObjectPtr<UTextureGraphBase>(TextureGraph),
 				 bRequiresCleanup = true](int32 NumExports) mutable
 			{
 				AsyncTask(

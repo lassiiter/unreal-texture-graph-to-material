@@ -16,7 +16,7 @@ namespace UE::TextureGraphMaterialBridgeEditor
 {
 	namespace
 	{
-		bool ReferencesSavedTextureGraph(const ITG_Editor* TextureGraphEditor, const UTextureGraph* SavedTextureGraph)
+		bool ReferencesSavedTextureGraph(const ITG_Editor* TextureGraphEditor, const UTextureGraphBase* SavedTextureGraph)
 		{
 			if (!TextureGraphEditor || !SavedTextureGraph)
 			{
@@ -47,9 +47,15 @@ namespace UE::TextureGraphMaterialBridgeEditor
 			return false;
 		}
 
-		UTextureGraphBase* ResolveOpenEditorTextureGraph(IAssetEditorInstance* EditorInstance, const UTextureGraph* SavedTextureGraph)
+		UTextureGraphBase* ResolveOpenEditorTextureGraph(IAssetEditorInstance* EditorInstance, const UTextureGraphBase* SavedTextureGraph)
 		{
-			if (!EditorInstance || EditorInstance->GetEditorName() != FName(TEXT("TG_Editor")))
+			if (!EditorInstance)
+			{
+				return nullptr;
+			}
+
+			const FName EditorName = EditorInstance->GetEditorName();
+			if (EditorName != FName(TEXT("TG_Editor")) && EditorName != FName(TEXT("TG_InstanceEditor")))
 			{
 				return nullptr;
 			}
@@ -62,9 +68,20 @@ namespace UE::TextureGraphMaterialBridgeEditor
 
 			return TextureGraphEditor ? Cast<UTextureGraphBase>(TextureGraphEditor->GetTextureGraphInterface()) : nullptr;
 		}
+
+		void EnsureTextureGraphInstanceInitialized(UTextureGraphBase* TextureGraph)
+		{
+			if (UTextureGraphInstance* TextureGraphInstance = Cast<UTextureGraphInstance>(TextureGraph))
+			{
+				if (!static_cast<const UTextureGraphInstance*>(TextureGraphInstance)->Graph())
+				{
+					TextureGraphInstance->Initialize();
+				}
+			}
+		}
 	}
 
-	FResolvedTextureGraphExportSource ResolveExportTextureGraph(UTextureGraph* SavedTextureGraph)
+	FResolvedTextureGraphExportSource ResolveExportTextureGraph(UTextureGraphBase* SavedTextureGraph)
 	{
 		if (SavedTextureGraph && GEditor)
 		{
@@ -118,6 +135,8 @@ namespace UE::TextureGraphMaterialBridgeEditor
 		{
 			return nullptr;
 		}
+
+		EnsureTextureGraphInstanceInitialized(SourceTextureGraph);
 
 		UTextureGraphInstance* PreparedTextureGraph = NewObject<UTextureGraphInstance>(GetTransientPackage(), NAME_None, RF_Standalone);
 		if (!PreparedTextureGraph)
@@ -177,6 +196,8 @@ namespace UE::TextureGraphMaterialBridgeEditor
 		{
 			return;
 		}
+
+		EnsureTextureGraphInstanceInitialized(TextureGraph);
 
 		UMixSettings* Settings = TextureGraph->GetSettings();
 		if (!Settings || Settings->NumTargets() > 0 || !TextureGraph->Graph())

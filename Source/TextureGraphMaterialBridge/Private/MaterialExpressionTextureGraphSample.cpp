@@ -38,7 +38,7 @@ TArray<FString> UMaterialExpressionTextureGraphSample::GetAvailableOutputNameOpt
 	return OutputNameOptions;
 }
 
-bool UMaterialExpressionTextureGraphSample::ReferencesTextureGraph(const UTextureGraph* InTextureGraph) const
+bool UMaterialExpressionTextureGraphSample::ReferencesTextureGraph(const UTextureGraphBase* InTextureGraph) const
 {
 	return TextureGraphAsset == InTextureGraph;
 }
@@ -126,13 +126,13 @@ int32 UMaterialExpressionTextureGraphSample::Compile(FMaterialCompiler* Compiler
 void UMaterialExpressionTextureGraphSample::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(FString::Printf(TEXT("Output: %s"), TargetOutputName.IsNone() ? TEXT("Unassigned") : *TargetOutputName.ToString()));
-	OutCaptions.Add(FString::Printf(TEXT("Graph: %s"), TextureGraphAsset ? *TextureGraphAsset->GetName() : TEXT("Unassigned")));
+	OutCaptions.Add(FString::Printf(TEXT("Source: %s"), TextureGraphAsset ? *TextureGraphAsset->GetName() : TEXT("Unassigned")));
 	OutCaptions.Add(GetNodeTitleText().ToString());
 }
 
 FText UMaterialExpressionTextureGraphSample::GetKeywords() const
 {
-	return LOCTEXT("TextureGraphSampleKeywords", "texture graph sample export bridge material texture sampler");
+	return LOCTEXT("TextureGraphSampleKeywords", "texture graph instance sample export bridge material texture sampler");
 }
 
 TSharedPtr<SGraphNodeMaterialBase> UMaterialExpressionTextureGraphSample::CreateCustomGraphNodeWidget()
@@ -187,6 +187,17 @@ UEdGraphNode* UMaterialExpressionTextureGraphSample::GetEditorGraphNode() const
 	return GraphNode;
 }
 
+void UMaterialExpressionTextureGraphSample::RefreshResolvedTextureGraphOutput()
+{
+	RefreshOutputSelection();
+	SyncResolvedTexture(true, true);
+
+	if (GraphNode)
+	{
+		GraphNode->ReconstructNode();
+	}
+}
+
 void UMaterialExpressionTextureGraphSample::RefreshOutputSelection()
 {
 	TArray<FName> OutputNames;
@@ -212,19 +223,19 @@ void UMaterialExpressionTextureGraphSample::RefreshOutputSelection()
 	TargetOutputName = OutputNames[0];
 }
 
-void UMaterialExpressionTextureGraphSample::SyncResolvedTexture()
+void UMaterialExpressionTextureGraphSample::SyncResolvedTexture(bool bForceSamplerTypeRefresh, bool bForcePropertyWindowRebuild)
 {
 	UTexture* ResolvedTexture = UE::TextureGraphMaterialBridge::ResolveTextureGraphExportedTexture(TextureGraphAsset, TargetOutputName, nullptr);
 	const bool bTextureChanged = Texture != ResolvedTexture;
 
 	Texture = ResolvedTexture;
 
-	if (bTextureChanged && Texture)
+	if ((bTextureChanged || bForceSamplerTypeRefresh) && Texture)
 	{
 		AutoSetSampleType();
 	}
 
-	if (bTextureChanged)
+	if (bTextureChanged || bForcePropertyWindowRebuild)
 	{
 		FEditorSupportDelegates::ForcePropertyWindowRebuild.Broadcast(this);
 	}

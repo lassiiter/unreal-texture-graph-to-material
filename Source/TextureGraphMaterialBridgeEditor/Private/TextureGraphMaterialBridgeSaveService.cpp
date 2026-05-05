@@ -1,16 +1,21 @@
 #include "TextureGraphMaterialBridgeSaveService.h"
 
 #include "TextureGraphMaterialBridgeEditorExportUtils.h"
+#include "TextureGraphMaterialBridgeExpressionUtils.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Async/Async.h"
+#include "Engine/Texture.h"
+#include "Editor.h"
+#include "IMaterialEditor.h"
 #include "MaterialEditorUtilities.h"
 #include "MaterialEditingLibrary.h"
 #include "MaterialExpressionTextureGraphOutput.h"
 #include "MaterialExpressionTextureGraphSample.h"
 #include "MaterialGraph/MaterialGraph.h"
 #include "Materials/Material.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "TG_HelperFunctions.h"
 #include "TextureGraph.h"
 #include "UObject/ObjectSaveContext.h"
@@ -40,7 +45,7 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 		return;
 	}
 
-	UTextureGraph* SavedTextureGraph = Cast<UTextureGraph>(Package->FindAssetInPackage());
+	UTextureGraphBase* SavedTextureGraph = Cast<UTextureGraphBase>(Package->FindAssetInPackage());
 	if (!SavedTextureGraph)
 	{
 		return;
@@ -80,7 +85,7 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 			.then(
 				[MaterialPaths = MoveTemp(ReferencingMaterialPaths),
 				 SavedTextureGraphPath,
-				 SavedTextureGraph = TWeakObjectPtr<UTextureGraph>(SavedTextureGraph)](int32 NumExports) mutable
+				 SavedTextureGraph = TWeakObjectPtr<UTextureGraphBase>(SavedTextureGraph)](int32 NumExports) mutable
 		{
 			AsyncTask(
 				ENamedThreads::GameThread,
@@ -141,7 +146,7 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 			[MaterialPaths = MoveTemp(ReferencingMaterialPaths),
 			 ExportTextureGraph = MoveTemp(ExportTextureGraph),
 			 SavedTextureGraphPath = SavedTextureGraph->GetPathName(),
-			 SavedTextureGraph = TWeakObjectPtr<UTextureGraph>(SavedTextureGraph),
+			 SavedTextureGraph = TWeakObjectPtr<UTextureGraphBase>(SavedTextureGraph),
 			 bRequiresCleanup = true](int32 NumExports) mutable
 		{
 			AsyncTask(
@@ -181,7 +186,7 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 		});
 }
 
-TArray<FSoftObjectPath> FTextureGraphMaterialBridgeSaveService::FindReferencingMaterialPaths(const UTextureGraph* TextureGraph) const
+TArray<FSoftObjectPath> FTextureGraphMaterialBridgeSaveService::FindReferencingMaterialPaths(const UTextureGraphBase* TextureGraph) const
 {
 	TArray<FSoftObjectPath> MaterialPaths;
 	if (!TextureGraph)
@@ -227,7 +232,7 @@ TArray<FSoftObjectPath> FTextureGraphMaterialBridgeSaveService::FindReferencingM
 	return MaterialPaths;
 }
 
-bool FTextureGraphMaterialBridgeSaveService::MaterialReferencesTextureGraph(const UMaterial* Material, const UTextureGraph* TextureGraph)
+bool FTextureGraphMaterialBridgeSaveService::MaterialReferencesTextureGraph(const UMaterial* Material, const UTextureGraphBase* TextureGraph)
 {
 	if (!Material || !TextureGraph)
 	{
@@ -256,8 +261,10 @@ bool FTextureGraphMaterialBridgeSaveService::MaterialReferencesTextureGraph(cons
 	return false;
 }
 
-void FTextureGraphMaterialBridgeSaveService::RecompileMaterials(const TArray<FSoftObjectPath>& MaterialPaths, const UTextureGraph* TextureGraph)
+void FTextureGraphMaterialBridgeSaveService::RecompileMaterials(const TArray<FSoftObjectPath>& MaterialPaths, const UTextureGraphBase* TextureGraph)
 {
+	RefreshExportedTextureResources(TextureGraph);
+
 	for (const FSoftObjectPath& MaterialPath : MaterialPaths)
 	{
 		UMaterial* Material = Cast<UMaterial>(MaterialPath.TryLoad());
@@ -266,17 +273,42 @@ void FTextureGraphMaterialBridgeSaveService::RecompileMaterials(const TArray<FSo
 			continue;
 		}
 
-		RefreshReferencedTextureGraphOutputs(Material, TextureGraph);
+		RefreshReferencedTextureGraphExpressions(Material, TextureGraph);
 		UMaterialEditingLibrary::RecompileMaterial(Material);
-
-		if (UMaterialGraph* MaterialGraph = Material->MaterialGraph.Get())
-		{
-			FMaterialEditorUtilities::ForceRefreshExpressionPreviews(MaterialGraph);
-		}
+		ForceRefreshMaterialEditorPreviews(Material);
 	}
 }
 
-void FTextureGraphMaterialBridgeSaveService::RefreshReferencedTextureGraphOutputs(UMaterial* Material, const UTextureGraph* TextureGraph)
+void FTextureGraphMaterialBridgeSaveService::RefreshExportedTextureResources(const UTextureGraphBase* TextureGraph)
+{
+	if (!TextureGraph)
+	{
+		return;
+	}
+
+	TArray<FName> OutputNames;
+	UE::TextureGraphMaterialBridge::GetTextureGraphOutputNames(TextureGraph, OutputNames);
+
+	TSet<UTexture*> RefreshedTextures;
+	for (const FName OutputName : OutputNames)
+	{
+		UTexture* Texture = UE::TextureGraphMaterialBridge::ResolveTextureGraphExportedTexture(TextureGraph, OutputName, nullptr);
+		if (!Texture)
+		{
+			continue;
+		}
+
+		if (RefreshedTextures.Contains(Texture))
+		{
+			continue;
+		}
+
+		Texture->UpdateResource();
+		RefreshedTextures.Add(Texture);
+	}
+}
+
+void FTextureGraphMaterialBridgeSaveService::RefreshReferencedTextureGraphExpressions(UMaterial* Material, const UTextureGraphBase* TextureGraph)
 {
 	if (!Material || !TextureGraph)
 	{
@@ -292,6 +324,69 @@ void FTextureGraphMaterialBridgeSaveService::RefreshReferencedTextureGraphOutput
 				RefreshTextureGraphOutputExpression(TextureGraphExpression);
 			}
 		}
+
+		if (UMaterialExpressionTextureGraphSample* TextureGraphSampleExpression = Cast<UMaterialExpressionTextureGraphSample>(Expression))
+		{
+			if (TextureGraphSampleExpression->ReferencesTextureGraph(TextureGraph))
+			{
+				RefreshTextureGraphSampleExpression(TextureGraphSampleExpression);
+			}
+		}
+	}
+}
+
+void FTextureGraphMaterialBridgeSaveService::ForceRefreshMaterialEditorPreviews(UMaterial* Material)
+{
+	if (!Material)
+	{
+		return;
+	}
+
+	if (UMaterialGraph* MaterialGraph = Material->MaterialGraph.Get())
+	{
+		FMaterialEditorUtilities::ForceRefreshExpressionPreviews(MaterialGraph);
+		return;
+	}
+
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor ? GEditor->GetEditorSubsystem<UAssetEditorSubsystem>() : nullptr;
+	if (!AssetEditorSubsystem)
+	{
+		return;
+	}
+
+	TArray<IAssetEditorInstance*> EditorInstances = AssetEditorSubsystem->FindEditorsForAsset(Material);
+	if (EditorInstances.IsEmpty())
+	{
+		EditorInstances = AssetEditorSubsystem->FindEditorsForAssetAndSubObjects(Material);
+	}
+
+	if (EditorInstances.IsEmpty())
+	{
+		return;
+	}
+
+	for (IAssetEditorInstance* EditorInstance : EditorInstances)
+	{
+		if (!EditorInstance)
+		{
+			continue;
+		}
+
+		if (EditorInstance->GetEditorName() != FName(TEXT("MaterialEditor")))
+		{
+			continue;
+		}
+
+		IMaterialEditor* MaterialEditor = static_cast<IMaterialEditor*>(EditorInstance);
+		if (!MaterialEditor)
+		{
+			continue;
+		}
+
+		MaterialEditor->UpdateDetailView();
+		MaterialEditor->ForceRefreshExpressionPreviews();
+		MaterialEditor->RefreshStatsMaterials();
+		return;
 	}
 }
 
@@ -308,4 +403,14 @@ void FTextureGraphMaterialBridgeSaveService::RefreshTextureGraphOutputExpression
 	{
 		GraphNode->ReconstructNode();
 	}
+}
+
+void FTextureGraphMaterialBridgeSaveService::RefreshTextureGraphSampleExpression(UMaterialExpressionTextureGraphSample* TextureGraphExpression)
+{
+	if (!TextureGraphExpression)
+	{
+		return;
+	}
+
+	TextureGraphExpression->RefreshResolvedTextureGraphOutput();
 }

@@ -9,12 +9,34 @@
 
 namespace UE::TextureGraphMaterialBridge
 {
+	namespace
+	{
+		const UTG_Graph* GetInitializedTextureGraph(const UTextureGraphBase* TextureGraph)
+		{
+			if (!TextureGraph)
+			{
+				return nullptr;
+			}
+
+			if (const UTextureGraphInstance* TextureGraphInstance = Cast<UTextureGraphInstance>(TextureGraph))
+			{
+				if (!TextureGraphInstance->Graph())
+				{
+					UTextureGraphInstance* MutableTextureGraphInstance = const_cast<UTextureGraphInstance*>(TextureGraphInstance);
+					MutableTextureGraphInstance->Initialize();
+				}
+			}
+
+			return TextureGraph->Graph();
+		}
+	}
+
 	FName GetTextureGraphOutputName(const UTG_Expression_Output& OutputExpression)
 	{
 		return OutputExpression.GetTitleName();
 	}
 
-	void GetTextureGraphOutputNames(const UTextureGraph* TextureGraph, TArray<FName>& OutOutputNames)
+	void GetTextureGraphOutputNames(const UTextureGraphBase* TextureGraph, TArray<FName>& OutOutputNames)
 	{
 		OutOutputNames.Reset();
 
@@ -23,7 +45,7 @@ namespace UE::TextureGraphMaterialBridge
 			return;
 		}
 
-		const UTG_Graph* Graph = TextureGraph->Graph();
+		const UTG_Graph* Graph = GetInitializedTextureGraph(TextureGraph);
 		if (!Graph)
 		{
 			return;
@@ -43,13 +65,13 @@ namespace UE::TextureGraphMaterialBridge
 		});
 	}
 
-	const UTG_Expression_Output* FindTextureGraphOutputExpression(const UTextureGraph* TextureGraph, FName InOutputName, FString* OutError)
+	const UTG_Expression_Output* FindTextureGraphOutputExpression(const UTextureGraphBase* TextureGraph, FName InOutputName, FString* OutError)
 	{
 		if (!TextureGraph)
 		{
 			if (OutError)
 			{
-				*OutError = BuildTextureGraphMaterialUsageError(TEXT("Select a Texture Graph asset on the node."), nullptr, InOutputName);
+				*OutError = BuildTextureGraphMaterialUsageError(TEXT("Select a Texture Graph source asset on the node."), nullptr, InOutputName);
 			}
 			return nullptr;
 		}
@@ -63,12 +85,12 @@ namespace UE::TextureGraphMaterialBridge
 			return nullptr;
 		}
 
-		const UTG_Graph* Graph = TextureGraph->Graph();
+		const UTG_Graph* Graph = GetInitializedTextureGraph(TextureGraph);
 		if (!Graph)
 		{
 			if (OutError)
 			{
-				*OutError = BuildTextureGraphMaterialUsageError(TEXT("The Texture Graph asset has no loaded graph data."), TextureGraph, InOutputName);
+				*OutError = BuildTextureGraphMaterialUsageError(TEXT("The Texture Graph source asset has no loaded graph data."), TextureGraph, InOutputName);
 			}
 			return nullptr;
 		}
@@ -102,7 +124,7 @@ namespace UE::TextureGraphMaterialBridge
 		return FoundOutput;
 	}
 
-	UTexture* ResolveTextureGraphExportedTexture(const UTextureGraph* TextureGraph, FName InOutputName, FString* OutError)
+	UTexture* ResolveTextureGraphExportedTexture(const UTextureGraphBase* TextureGraph, FName InOutputName, FString* OutError)
 	{
 		const UTG_Expression_Output* OutputExpression = FindTextureGraphOutputExpression(TextureGraph, InOutputName, OutError);
 		if (!OutputExpression)
@@ -189,14 +211,14 @@ namespace UE::TextureGraphMaterialBridge
 		return FString::Printf(TEXT("%s.%s"), *PackagePath, *AssetName);
 	}
 
-	FString BuildTextureGraphMaterialUsageError(const FString& DetailMessage, const UTextureGraph* InTextureGraph, FName InOutputName)
+	FString BuildTextureGraphMaterialUsageError(const FString& DetailMessage, const UTextureGraphBase* InTextureGraph, FName InOutputName)
 	{
-		const FString GraphName = InTextureGraph ? InTextureGraph->GetName() : TEXT("None");
+		const FString SourceName = InTextureGraph ? InTextureGraph->GetName() : TEXT("None");
 		const FString OutputLabel = InOutputName.IsNone() ? TEXT("None") : InOutputName.ToString();
 		return FString::Printf(
-			TEXT("Texture Graph output is not ready for material use. %s Graph='%s', Output='%s'."),
+			TEXT("Texture Graph output is not ready for material use. %s Source='%s', Output='%s'."),
 			*DetailMessage,
-			*GraphName,
+			*SourceName,
 			*OutputLabel);
 	}
 }

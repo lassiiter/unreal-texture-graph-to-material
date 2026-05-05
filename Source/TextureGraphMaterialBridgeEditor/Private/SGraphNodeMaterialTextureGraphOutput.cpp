@@ -131,7 +131,7 @@ FSlateColor SGraphNodeMaterialTextureGraphOutput::GetStatusColor() const
 
 FText SGraphNodeMaterialTextureGraphOutput::GetOpenHintLabel() const
 {
-	return LOCTEXT("OpenHint", "Double-click to open the Texture Graph");
+	return LOCTEXT("OpenHint", "Double-click to open the Texture Graph source");
 }
 
 EVisibility SGraphNodeMaterialTextureGraphOutput::GetOpenHintVisibility() const

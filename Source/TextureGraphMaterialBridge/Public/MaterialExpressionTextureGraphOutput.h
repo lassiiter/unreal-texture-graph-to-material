@@ -31,9 +31,9 @@ public:
 	UMaterialExpressionTextureGraphOutput(const FObjectInitializer& ObjectInitializer);
 
 	UPROPERTY(EditAnywhere, Category = "Texture Graph")
-	TObjectPtr<UTextureGraph> TextureGraphAsset;
+	TObjectPtr<UTextureGraphBase> TextureGraphAsset;
 
-	bool ReferencesTextureGraph(const UTextureGraph* InTextureGraph) const;
+	bool ReferencesTextureGraph(const UTextureGraphBase* InTextureGraph) const;
 
 	virtual UObject* GetReferencedTexture() const override;
 	virtual bool CanReferenceTexture() const override;

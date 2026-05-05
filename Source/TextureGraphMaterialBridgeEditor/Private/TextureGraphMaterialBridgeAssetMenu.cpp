@@ -20,14 +20,40 @@ namespace TextureGraphMaterialBridgeAssetMenu
 			return;
 		}
 
-		TArray<UTextureGraph*> TextureGraphs = Context->LoadSelectedObjects<UTextureGraph>();
-		if (TextureGraphs.IsEmpty())
+		TArray<UTextureGraphBase*> TextureGraphSources;
+		for (UTextureGraph* TextureGraph : Context->LoadSelectedObjects<UTextureGraph>())
+		{
+			TextureGraphSources.AddUnique(TextureGraph);
+		}
+		for (UTextureGraphInstance* TextureGraphInstance : Context->LoadSelectedObjects<UTextureGraphInstance>())
+		{
+			TextureGraphSources.AddUnique(TextureGraphInstance);
+		}
+
+		if (TextureGraphSources.IsEmpty())
 		{
 			return;
 		}
 
 		FTextureGraphMaterialBridgeEditorModule& Module = FModuleManager::LoadModuleChecked<FTextureGraphMaterialBridgeEditorModule>(TEXT("TextureGraphMaterialBridgeEditor"));
-		Module.GetMaterialCreationService().CreateLinkedMaterials(TextureGraphs);
+		Module.GetMaterialCreationService().CreateLinkedMaterials(TextureGraphSources);
+	}
+
+	static void AddCreateLinkedMaterialMenuEntry(UToolMenu* Menu)
+	{
+		FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
+		Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			if (UContentBrowserAssetContextMenuContext::FindContextWithAssets(InSection) == nullptr)
+			{
+				return;
+			}
+
+			const TAttribute<FText> Label = LOCTEXT("CreateLinkedMaterialLabel", "Create Linked Material");
+			const TAttribute<FText> ToolTip = LOCTEXT("CreateLinkedMaterialToolTip", "Create a linked material beside this Texture Graph source and auto-wire supported outputs.");
+			const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&ExecuteCreateLinkedMaterial);
+			InSection.AddMenuEntry("TextureGraphMaterialBridge_CreateLinkedMaterial", Label, ToolTip, FSlateIcon(), UIAction);
+		}));
 	}
 
 	static FDelayedAutoRegisterHelper DelayedAutoRegister(EDelayedRegisterRunPhase::EndOfEngineInit, []
@@ -36,20 +62,8 @@ namespace TextureGraphMaterialBridgeAssetMenu
 		{
 			FToolMenuOwnerScoped OwnerScoped(UE_MODULE_NAME);
 
-			UToolMenu* Menu = UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UTextureGraph::StaticClass());
-			FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
-			Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
-			{
-				if (UContentBrowserAssetContextMenuContext::FindContextWithAssets(InSection) == nullptr)
-				{
-					return;
-				}
-
-				const TAttribute<FText> Label = LOCTEXT("CreateLinkedMaterialLabel", "Create Linked Material");
-				const TAttribute<FText> ToolTip = LOCTEXT("CreateLinkedMaterialToolTip", "Create a linked material beside this Texture Graph and auto-wire supported outputs.");
-				const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&ExecuteCreateLinkedMaterial);
-				InSection.AddMenuEntry("TextureGraphMaterialBridge_CreateLinkedMaterial", Label, ToolTip, FSlateIcon(), UIAction);
-			}));
+			AddCreateLinkedMaterialMenuEntry(UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UTextureGraph::StaticClass()));
+			AddCreateLinkedMaterialMenuEntry(UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UTextureGraphInstance::StaticClass()));
 		}));
 	});
 }

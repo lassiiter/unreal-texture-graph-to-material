@@ -30,7 +30,7 @@ UMaterialExpressionTextureGraphOutput::UMaterialExpressionTextureGraphOutput(con
 #endif
 }
 
-bool UMaterialExpressionTextureGraphOutput::ReferencesTextureGraph(const UTextureGraph* InTextureGraph) const
+bool UMaterialExpressionTextureGraphOutput::ReferencesTextureGraph(const UTextureGraphBase* InTextureGraph) const
 {
 	return TextureGraphAsset == InTextureGraph;
 }
@@ -73,13 +73,13 @@ int32 UMaterialExpressionTextureGraphOutput::Compile(FMaterialCompiler* Compiler
 
 void UMaterialExpressionTextureGraphOutput::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(FString::Printf(TEXT("Graph: %s"), TextureGraphAsset ? *TextureGraphAsset->GetName() : TEXT("Unassigned")));
+	OutCaptions.Add(FString::Printf(TEXT("Source: %s"), TextureGraphAsset ? *TextureGraphAsset->GetName() : TEXT("Unassigned")));
 	OutCaptions.Add(GetNodeTitleText().ToString());
 }
 
 FText UMaterialExpressionTextureGraphOutput::GetKeywords() const
 {
-	return LOCTEXT("TextureGraphOutputKeywords", "texture graph output export bridge material texture object");
+	return LOCTEXT("TextureGraphOutputKeywords", "texture graph instance output export bridge material texture object");
 }
 
 EMaterialValueType UMaterialExpressionTextureGraphOutput::GetOutputValueType(int32 OutputIndex)

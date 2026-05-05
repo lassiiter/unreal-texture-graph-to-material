@@ -16,7 +16,7 @@ public:
 	UMaterialExpressionTextureGraphSample(const FObjectInitializer& ObjectInitializer);
 
 	UPROPERTY(EditAnywhere, Category = "Texture Graph")
-	TObjectPtr<UTextureGraph> TextureGraphAsset;
+	TObjectPtr<UTextureGraphBase> TextureGraphAsset;
 
 	UPROPERTY(EditAnywhere, Category = "Texture Graph", meta = (DisplayName = "Output", GetOptions = "GetAvailableOutputNameOptions"))
 	FName TargetOutputName;
@@ -24,7 +24,7 @@ public:
 	UFUNCTION()
 	TArray<FString> GetAvailableOutputNameOptions() const;
 
-	bool ReferencesTextureGraph(const UTextureGraph* InTextureGraph) const;
+	bool ReferencesTextureGraph(const UTextureGraphBase* InTextureGraph) const;
 
 	virtual UObject* GetReferencedTexture() const override;
 	virtual bool CanReferenceTexture() const override;
@@ -41,6 +41,7 @@ public:
 	virtual FText GetCreationName() const override;
 	virtual FText GetCreationDescription() const override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	void RefreshResolvedTextureGraphOutput();
 	UEdGraphNode* GetEditorGraphNode() const;
 #endif
 
@@ -49,7 +50,7 @@ private:
 
 #if WITH_EDITOR
 	void RefreshOutputSelection();
-	void SyncResolvedTexture();
+	void SyncResolvedTexture(bool bForceSamplerTypeRefresh = false, bool bForcePropertyWindowRebuild = false);
 	static FText GetNodeTitleText();
 #endif
 };

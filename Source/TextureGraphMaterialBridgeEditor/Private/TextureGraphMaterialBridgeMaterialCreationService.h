@@ -2,10 +2,10 @@
 
 #include "CoreMinimal.h"
 
-class UTextureGraph;
+class UTextureGraphBase;
 
 class FTextureGraphMaterialBridgeMaterialCreationService
 {
 public:
-	void CreateLinkedMaterials(TConstArrayView<UTextureGraph*> TextureGraphs) const;
+	void CreateLinkedMaterials(TConstArrayView<UTextureGraphBase*> TextureGraphs) const;
 };
