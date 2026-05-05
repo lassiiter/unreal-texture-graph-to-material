@@ -14,5 +14,14 @@ public class TextureGraphMaterialBridge : ModuleRules
                 "Engine",
                 "TextureGraph"
             });
+
+        PrivateDependencyModuleNames.AddRange(
+            new[]
+            {
+                "Projects",
+                "RenderCore",
+                "RHI",
+                "TextureGraphEngine"
+            });
     }
 }

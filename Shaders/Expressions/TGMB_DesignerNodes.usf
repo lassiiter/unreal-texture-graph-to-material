@@ -1,0 +1,409 @@
+#include "/Engine/Public/Platform.ush"
+#include "/Plugin/TextureGraph/SamplerStates.ush"
+#include "/Plugin/TextureGraph/TileInfo.ush"
+#include "/Plugin/TextureGraphMaterialBridge/TGMB_DesignerCommon.ush"
+
+Texture2D SourceTexture;
+Texture2D MaskTexture;
+Texture2D ScaleMap;
+Texture2D RotationMap;
+Texture2D SlopeTexture;
+Texture2D BaseNormal;
+Texture2D DetailNormal;
+Texture2D ABaseColor;
+Texture2D ANormal;
+Texture2D AORM;
+Texture2D AHeight;
+Texture2D BBaseColor;
+Texture2D BNormal;
+Texture2D BORM;
+Texture2D BHeight;
+
+int OutputMode;
+int PatternType;
+int Seed;
+int NumStops;
+int Interpolation;
+int AddressMode;
+int BlendMode;
+int Connectivity;
+int Samples;
+int Mode;
+
+float CountX;
+float CountY;
+float Scale;
+float Spacing;
+float OffsetX;
+float OffsetY;
+float Rotation;
+float PositionJitter;
+float SizeJitter;
+float RotationJitter;
+float LuminanceJitter;
+float DetailStrength;
+float InvertGreen;
+float Threshold;
+float GradientAngle;
+float Intensity;
+float InvertSlope;
+float Distance;
+float Smoothness;
+float Radius;
+float HeightScale;
+float Bias;
+float Contrast;
+float Invert;
+float Smoothing;
+float NormalStrength;
+
+float Position0;
+float Position1;
+float Position2;
+float Position3;
+float Position4;
+float Position5;
+float Position6;
+float Position7;
+
+float4 Color0;
+float4 Color1;
+float4 Color2;
+float4 Color3;
+float4 Color4;
+float4 Color5;
+float4 Color6;
+float4 Color7;
+
+float TGMB_GetStopPosition(int Index)
+{
+	if (Index == 0) return Position0;
+	if (Index == 1) return Position1;
+	if (Index == 2) return Position2;
+	if (Index == 3) return Position3;
+	if (Index == 4) return Position4;
+	if (Index == 5) return Position5;
+	if (Index == 6) return Position6;
+	return Position7;
+}
+
+float4 TGMB_GetStopColor(int Index)
+{
+	if (Index == 0) return Color0;
+	if (Index == 1) return Color1;
+	if (Index == 2) return Color2;
+	if (Index == 3) return Color3;
+	if (Index == 4) return Color4;
+	if (Index == 5) return Color5;
+	if (Index == 6) return Color6;
+	return Color7;
+}
+
+float TGMB_TileShape(float2 Local, int ShapeType, float Size)
+{
+	float HalfSize = max(Size * 0.5, 0.001);
+	if (ShapeType == 1)
+	{
+		return 1.0 - smoothstep(HalfSize, HalfSize + 0.01, length(Local));
+	}
+	if (ShapeType == 2)
+	{
+		return 1.0 - smoothstep(HalfSize, HalfSize + 0.01, abs(Local.x) + abs(Local.y));
+	}
+	if (ShapeType == 3)
+	{
+		return step(0.0, fmod(floor(Local.x + 0.5) + floor(Local.y + 0.5), 2.0));
+	}
+
+	float2 Box = step(abs(Local), float2(HalfSize, HalfSize));
+	return min(Box.x, Box.y);
+}
+
+float4 FSH_TGMBTileGenerator(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float2 Counts = max(float2(CountX, CountY), 1.0);
+	float2 GridUV = LayerUV * Counts + float2(OffsetX, OffsetY);
+	float2 Cell = floor(GridUV);
+	float2 R2 = TGMB_Hash22(Cell + Seed);
+	float R = TGMB_Hash12(Cell + Seed * 11.17);
+	float2 Local = frac(GridUV) - 0.5;
+
+	Local -= (R2 - 0.5) * PositionJitter;
+	Local = TGMB_Rotate(Local, Rotation + (R - 0.5) * RotationJitter);
+
+	float TileScale = saturate(Scale) * (1.0 - saturate(Spacing));
+	TileScale *= max(0.001, 1.0 + (TGMB_Hash12(Cell + Seed * 7.13) - 0.5) * SizeJitter);
+	float Mask = TGMB_TileShape(Local, PatternType, TileScale);
+	float Luma = saturate(1.0 + (TGMB_Hash12(Cell + Seed * 3.41) - 0.5) * LuminanceJitter);
+	float Id = TGMB_Hash12(Cell + Seed);
+
+	if (OutputMode == 1)
+	{
+		return float4(Id.xxx * Mask, 1.0);
+	}
+	if (OutputMode == 2)
+	{
+		float3 RandomColor = float3(Id, TGMB_Hash12(Cell + Seed + 19.0), TGMB_Hash12(Cell + Seed + 43.0));
+		return float4(RandomColor * Mask, 1.0);
+	}
+
+	return float4((Mask * Luma).xxx, 1.0);
+}
+
+float4 FSH_TGMBTileSampler(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float2 Counts = max(float2(CountX, CountY), 1.0);
+	float2 GridUV = LayerUV * Counts;
+	float2 Cell = floor(GridUV);
+	float2 R2 = TGMB_Hash22(Cell + Seed);
+	float R = TGMB_Hash12(Cell + Seed * 5.71);
+	float2 Local = frac(GridUV) - 0.5;
+
+	float Mask = MaskTexture.Sample(SamplerStates_Linear_Wrap, LayerUV).r;
+	float ScaleFromMap = max(ScaleMap.Sample(SamplerStates_Linear_Wrap, LayerUV).r, 0.001);
+	float RotationFromMap = RotationMap.Sample(SamplerStates_Linear_Wrap, LayerUV).r * 6.2831853;
+	float TileScale = max(0.001, saturate(Scale) * ScaleFromMap * (1.0 - saturate(Spacing)));
+	TileScale *= max(0.001, 1.0 + (R - 0.5) * SizeJitter);
+
+	Local -= (R2 - 0.5) * PositionJitter;
+	Local = TGMB_Rotate(Local, Rotation + RotationFromMap + (TGMB_Hash12(Cell + Seed * 13.0) - 0.5) * RotationJitter);
+
+	float2 SampleUV = Local / TileScale + 0.5;
+	float InCell = min(step(0.0, SampleUV.x) * step(SampleUV.x, 1.0), step(0.0, SampleUV.y) * step(SampleUV.y, 1.0));
+	return SourceTexture.Sample(SamplerStates_Linear_Wrap, SampleUV) * Mask * InCell;
+}
+
+float4 FSH_TGMBGradientMap(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float T = TGMB_Luma(SourceTexture.Sample(SamplerStates_Linear_Wrap, UV));
+	if (AddressMode == 1)
+	{
+		T = frac(T);
+	}
+	else
+	{
+		T = saturate(T);
+	}
+
+	int StopCount = clamp(NumStops, 2, 8);
+	float4 Result = TGMB_GetStopColor(0);
+	for (int Index = 0; Index < 7; ++Index)
+	{
+		if (Index >= StopCount - 1)
+		{
+			break;
+		}
+
+		float P0 = TGMB_GetStopPosition(Index);
+		float P1 = TGMB_GetStopPosition(Index + 1);
+		float Range = max(P1 - P0, 0.0001);
+		float A = saturate((T - P0) / Range);
+		if (Interpolation == 0)
+		{
+			A = step(1.0, A);
+		}
+		else if (Interpolation == 2)
+		{
+			A = smoothstep(0.0, 1.0, A);
+		}
+		Result = lerp(Result, TGMB_GetStopColor(Index + 1), step(P0, T) * A);
+	}
+
+	return Result;
+}
+
+float4 FSH_TGMBNormalCombine(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float3 Base = TGMB_DecodeNormal(BaseNormal.Sample(SamplerStates_Linear_Wrap, UV), 0.0);
+	float3 Detail = TGMB_DecodeNormal(DetailNormal.Sample(SamplerStates_Linear_Wrap, UV), InvertGreen);
+	Detail = normalize(lerp(float3(0.0, 0.0, 1.0), Detail, saturate(DetailStrength)));
+
+	float3 Combined = TGMB_BlendNormalsRNM(Base, Detail);
+	if (BlendMode == 1)
+	{
+		Combined = TGMB_BlendNormalsWhiteout(Base, Detail);
+	}
+	else if (BlendMode == 2)
+	{
+		Combined = normalize(float3(Base.xy + Detail.xy, Base.z));
+	}
+
+	float Mask = saturate(MaskTexture.Sample(SamplerStates_Linear_Wrap, UV).r);
+	return TGMB_EncodeNormal(normalize(lerp(Base, Combined, Mask)));
+}
+
+float4 FSH_TGMBFloodFill(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float Mask = step(Threshold, TGMB_SampleLuma(SourceTexture, LayerUV));
+	float CellScale = (Connectivity == 0) ? 64.0 : 48.0;
+	float2 Cell = floor(LayerUV * CellScale);
+	float Id = TGMB_Hash12(Cell + Seed);
+
+	if (OutputMode == 1)
+	{
+		float3 RandomColor = float3(Id, TGMB_Hash12(Cell + Seed + 17.0), TGMB_Hash12(Cell + Seed + 31.0));
+		return float4(RandomColor * Mask, 1.0);
+	}
+	if (OutputMode == 2)
+	{
+		return float4(LayerUV * Mask, Id * Mask, 1.0);
+	}
+	if (OutputMode == 3)
+	{
+		float2 Direction = float2(cos(GradientAngle), sin(GradientAngle));
+		float G = saturate(dot(frac(LayerUV * CellScale), Direction) * 0.5 + 0.5);
+		return float4((G * Mask).xxx, 1.0);
+	}
+
+	return float4((Id * Mask).xxx, 1.0);
+}
+
+float4 FSH_TGMBSlopeBlur(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float2 Resolution = TileInfo_layerResolution();
+	float2 Texel = rcp(max(Resolution, 1.0));
+
+	float Left = TGMB_SampleLuma(SlopeTexture, LayerUV - float2(Texel.x, 0));
+	float Right = TGMB_SampleLuma(SlopeTexture, LayerUV + float2(Texel.x, 0));
+	float Up = TGMB_SampleLuma(SlopeTexture, LayerUV - float2(0, Texel.y));
+	float Down = TGMB_SampleLuma(SlopeTexture, LayerUV + float2(0, Texel.y));
+	float2 Dir = normalize(float2(Right - Left, Down - Up) + 0.00001);
+	Dir *= lerp(1.0, -1.0, InvertSlope);
+
+	int Count = clamp(Samples, 1, 64);
+	float4 Accum = 0.0;
+	float4 MinValue = 9999.0;
+	float4 MaxValue = -9999.0;
+	for (int Index = 0; Index < 64; ++Index)
+	{
+		if (Index >= Count)
+		{
+			break;
+		}
+
+		float A = (Count == 1) ? 0.0 : (float(Index) / float(Count - 1) - 0.5);
+		float4 SampleValue = SourceTexture.Sample(SamplerStates_Linear_Wrap, LayerUV + Dir * A * Intensity);
+		Accum += SampleValue;
+		MinValue = min(MinValue, SampleValue);
+		MaxValue = max(MaxValue, SampleValue);
+	}
+
+	if (Mode == 1)
+	{
+		return MinValue;
+	}
+	if (Mode == 2)
+	{
+		return MaxValue;
+	}
+	return Accum / Count;
+}
+
+float4 FSH_TGMBBevel(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float Center = step(Threshold, TGMB_SampleLuma(SourceTexture, LayerUV));
+	float Edge = 0.0;
+	for (int Index = 0; Index < 16; ++Index)
+	{
+		float Angle = (float(Index) / 16.0) * 6.2831853;
+		float2 Offset = float2(cos(Angle), sin(Angle)) * Distance;
+		float Neighbor = step(Threshold, TGMB_SampleLuma(SourceTexture, LayerUV + Offset));
+		Edge = max(Edge, abs(Center - Neighbor));
+	}
+
+	float Bevel = saturate(Edge * max(Smoothness, 0.001));
+	float Height = Center;
+	if (Mode == 0)
+	{
+		Height = Center - Bevel * Center;
+	}
+	else if (Mode == 1)
+	{
+		Height = Center + Bevel * (1.0 - Center);
+	}
+	else
+	{
+		Height = Center * (1.0 - Bevel) + Bevel * 0.5;
+	}
+	return float4(saturate(Height).xxx, 1.0);
+}
+
+float4 FSH_TGMBHBAO(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float Center = TGMB_SampleLuma(SourceTexture, LayerUV);
+	int Count = clamp(Samples, 1, 64);
+	float Occlusion = 0.0;
+	for (int Index = 0; Index < 64; ++Index)
+	{
+		if (Index >= Count)
+		{
+			break;
+		}
+
+		float A = (float(Index) / max(float(Count), 1.0)) * 6.2831853;
+		float Ring = (float((Index % 8) + 1) / 8.0);
+		float2 Offset = float2(cos(A), sin(A)) * Radius * Ring;
+		float H = TGMB_SampleLuma(SourceTexture, LayerUV + Offset);
+		Occlusion += saturate((H - Center) * HeightScale - Bias);
+	}
+
+	float AO = 1.0 - saturate(Occlusion / Count);
+	AO = pow(saturate(AO), max(Contrast, 0.001));
+	AO = lerp(AO, 1.0 - AO, Invert);
+	return float4(AO.xxx, 1.0);
+}
+
+float4 FSH_TGMBCurvatureSmooth(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float2 Resolution = TileInfo_layerResolution();
+	float2 Texel = rcp(max(Resolution, 1.0)) * max(Radius, 1.0);
+	float3 Center = TGMB_DecodeNormal(SourceTexture.Sample(SamplerStates_Linear_Wrap, LayerUV), 0.0);
+
+	float3 Average = 0.0;
+	for (int Index = 0; Index < 8; ++Index)
+	{
+		float A = (float(Index) / 8.0) * 6.2831853;
+		float3 N = TGMB_DecodeNormal(SourceTexture.Sample(SamplerStates_Linear_Wrap, LayerUV + float2(cos(A), sin(A)) * Texel), 0.0);
+		Average += N;
+	}
+	Average = normalize(Average / 8.0);
+
+	float Curvature = (Average.z - Center.z) * Intensity;
+	Curvature = lerp(Curvature, saturate(1.0 - dot(Center, Average)) * Intensity, saturate(Smoothing));
+	if (OutputMode == 1)
+	{
+		return float4(saturate(Curvature).xxx, 1.0);
+	}
+	if (OutputMode == 2)
+	{
+		return float4(saturate(-Curvature).xxx, 1.0);
+	}
+	return float4(saturate(0.5 + Curvature).xxx, 1.0);
+}
+
+float4 FSH_TGMBMultiMaterialBlend(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float Mask = saturate(MaskTexture.Sample(SamplerStates_Linear_Wrap, UV).r);
+	if (OutputMode == 1)
+	{
+		float3 A = TGMB_DecodeNormal(ANormal.Sample(SamplerStates_Linear_Wrap, UV), 0.0);
+		float3 B = TGMB_DecodeNormal(BNormal.Sample(SamplerStates_Linear_Wrap, UV), 0.0);
+		return TGMB_EncodeNormal(normalize(lerp(A, B, Mask * saturate(NormalStrength))));
+	}
+	if (OutputMode == 2)
+	{
+		return lerp(AORM.Sample(SamplerStates_Linear_Wrap, UV), BORM.Sample(SamplerStates_Linear_Wrap, UV), Mask);
+	}
+	if (OutputMode == 3)
+	{
+		return lerp(AHeight.Sample(SamplerStates_Linear_Wrap, UV), BHeight.Sample(SamplerStates_Linear_Wrap, UV), Mask);
+	}
+	return lerp(ABaseColor.Sample(SamplerStates_Linear_Wrap, UV), BBaseColor.Sample(SamplerStates_Linear_Wrap, UV), Mask);
+}

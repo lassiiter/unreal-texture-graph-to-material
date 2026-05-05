@@ -13,6 +13,21 @@ The plugin adds material expression nodes for Texture Graph outputs, refreshes l
 - Auto-wires common outputs such as base color, normal, emissive, ambient occlusion, roughness, and metallic.
 - Supports common ORM packing conventions for ambient occlusion, roughness, and metallic channels.
 
+## Additional Texture Graph Nodes
+
+The plugin also adds UE-native, Designer-style Texture Graph nodes for common material-authoring workflows:
+
+- Tile Generator
+- Tile Sampler
+- Flood Fill
+- Slope Blur
+- Gradient Map
+- Bevel
+- Ambient Occlusion HBAO
+- Normal Combine
+- Curvature Smooth
+- Multi-Material Blend
+
 ## Typical Workflow
 
 1. Configure Texture Graph outputs with valid export settings.

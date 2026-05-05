@@ -1,0 +1,56 @@
+#pragma once
+
+float TGMB_Luma(float4 Color)
+{
+	return dot(Color.rgb, float3(0.299, 0.587, 0.114));
+}
+
+float TGMB_Hash12(float2 P)
+{
+	float3 P3 = frac(float3(P.xyx) * 0.1031);
+	P3 += dot(P3, P3.yzx + 33.33);
+	return frac((P3.x + P3.y) * P3.z);
+}
+
+float2 TGMB_Hash22(float2 P)
+{
+	float3 P3 = frac(float3(P.xyx) * float3(0.1031, 0.1030, 0.0973));
+	P3 += dot(P3, P3.yzx + 33.33);
+	return frac((P3.xx + P3.yz) * P3.zy);
+}
+
+float3 TGMB_DecodeNormal(float4 Color, float InvertGreen)
+{
+	float3 Normal = Color.xyz * 2.0 - 1.0;
+	Normal.y = lerp(Normal.y, -Normal.y, InvertGreen);
+	return normalize(Normal);
+}
+
+float4 TGMB_EncodeNormal(float3 Normal)
+{
+	return float4(normalize(Normal) * 0.5 + 0.5, 1.0);
+}
+
+float3 TGMB_BlendNormalsRNM(float3 Base, float3 Detail)
+{
+	Base += float3(0.0, 0.0, 1.0);
+	Detail *= float3(-1.0, -1.0, 1.0);
+	return normalize(Base * dot(Base, Detail) / max(Base.z, 0.001) - Detail);
+}
+
+float3 TGMB_BlendNormalsWhiteout(float3 Base, float3 Detail)
+{
+	return normalize(float3(Base.xy + Detail.xy, Base.z * Detail.z));
+}
+
+float2 TGMB_Rotate(float2 P, float Angle)
+{
+	float S = sin(Angle);
+	float C = cos(Angle);
+	return float2(C * P.x - S * P.y, S * P.x + C * P.y);
+}
+
+float TGMB_SampleLuma(Texture2D Tex, float2 UV)
+{
+	return TGMB_Luma(Tex.Sample(SamplerStates_Linear_Wrap, UV));
+}

@@ -25,6 +25,7 @@ New-Item -ItemType Directory -Force -Path $pluginDestination | Out-Null
 $itemsToCopy = @(
     "Source",
     "Resources",
+    "Shaders",
     "Content",
     "$pluginName.uplugin"
 )
