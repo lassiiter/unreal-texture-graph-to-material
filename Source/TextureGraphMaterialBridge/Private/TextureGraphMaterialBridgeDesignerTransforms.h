@@ -8,6 +8,245 @@
 
 #define UE_API TEXTUREGRAPHMATERIALBRIDGE_API
 
+class FSH_TGMBFloodFillToRandomGrayscale : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBFloodFillToRandomGrayscale, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBFloodFillToRandomGrayscale, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+		SHADER_PARAMETER(int32, Seed)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBFloodFillToRandomColor : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBFloodFillToRandomColor, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBFloodFillToRandomColor, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+		SHADER_PARAMETER(int32, Seed)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBFloodFillToGradient : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBFloodFillToGradient, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBFloodFillToGradient, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+		SHADER_PARAMETER(float, GradientAngle)
+		SHADER_PARAMETER(float, RotationJitter)
+		SHADER_PARAMETER(int32, Seed)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBFloodFillToPosition : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBFloodFillToPosition, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBFloodFillToPosition, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBFloodFillMapper : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBFloodFillMapper, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBFloodFillMapper, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+		SHADER_PARAMETER_TEXTURE(Texture2D, MaskTexture)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBMultiDirectionalWarp : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBMultiDirectionalWarp, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBMultiDirectionalWarp, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+		SHADER_PARAMETER_TEXTURE(Texture2D, MaskTexture)
+		SHADER_PARAMETER(float, Intensity)
+		SHADER_PARAMETER(float, Rotation)
+		SHADER_PARAMETER(float, GradientAngle)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBNonUniformDirectionalWarp : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBNonUniformDirectionalWarp, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBNonUniformDirectionalWarp, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+		SHADER_PARAMETER_TEXTURE(Texture2D, MaskTexture)
+		SHADER_PARAMETER(float, Intensity)
+		SHADER_PARAMETER(float, GradientAngle)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBDirectionalDistance : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBDirectionalDistance, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBDirectionalDistance, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+		SHADER_PARAMETER(float, Distance)
+		SHADER_PARAMETER(float, GradientAngle)
+		SHADER_PARAMETER(int32, Samples)
+		SHADER_PARAMETER(float, Threshold)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBShapeSplatter : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBShapeSplatter, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBShapeSplatter, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+		SHADER_PARAMETER_TEXTURE(Texture2D, MaskTexture)
+		SHADER_PARAMETER(float, CountX)
+		SHADER_PARAMETER(float, CountY)
+		SHADER_PARAMETER(float, Scale)
+		SHADER_PARAMETER(float, Threshold)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBClouds2 : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBClouds2, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBClouds2, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER(float, Scale)
+		SHADER_PARAMETER(float, Contrast)
+		SHADER_PARAMETER(float, Bias)
+		SHADER_PARAMETER(float, OffsetX)
+		SHADER_PARAMETER(float, OffsetY)
+		SHADER_PARAMETER(int32, Seed)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBBnWSpots : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBBnWSpots, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBBnWSpots, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER(float, Scale)
+		SHADER_PARAMETER(float, Threshold)
+		SHADER_PARAMETER(float, Smoothness)
+		SHADER_PARAMETER(float, OffsetX)
+		SHADER_PARAMETER(float, OffsetY)
+		SHADER_PARAMETER(int32, Seed)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBGrungeDirt : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBGrungeDirt, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBGrungeDirt, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER(float, Scale)
+		SHADER_PARAMETER(float, Contrast)
+		SHADER_PARAMETER(float, Bias)
+		SHADER_PARAMETER(float, OffsetX)
+		SHADER_PARAMETER(float, OffsetY)
+		SHADER_PARAMETER(int32, Seed)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBHighpass : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBHighpass, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBHighpass, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+		SHADER_PARAMETER(float, Radius)
+		SHADER_PARAMETER(float, Contrast)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBLuminanceHighpass : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBLuminanceHighpass, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBLuminanceHighpass, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+		SHADER_PARAMETER(float, Radius)
+		SHADER_PARAMETER(float, Contrast)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBCurvatureSobel : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBCurvatureSobel, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBCurvatureSobel, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+		SHADER_PARAMETER(float, Radius)
+		SHADER_PARAMETER(float, Intensity)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+
 class FSH_TGMBTileGenerator : public FSH_Base
 {
 public:
@@ -272,7 +511,23 @@ namespace UE::TextureGraphMaterialBridge
 	class FDesignerTransforms
 	{
 	public:
-		static TiledBlobPtr CreateTileGenerator(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, int32 OutputMode, int32 PatternType, int32 Seed, float CountX, float CountY, float Scale, float Spacing, float OffsetX, float OffsetY, float Rotation, float PositionJitter, float SizeJitter, float RotationJitter, float LuminanceJitter);
+				static TiledBlobPtr CreateFloodFillToRandomGrayscale(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 Seed);
+		static TiledBlobPtr CreateFloodFillToRandomColor(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 Seed);
+		static TiledBlobPtr CreateFloodFillToGradient(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float GradientAngle, float RotationJitter, int32 Seed);
+		static TiledBlobPtr CreateFloodFillToPosition(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source);
+		static TiledBlobPtr CreateFloodFillMapper(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr MaskTexture);
+		static TiledBlobPtr CreateMultiDirectionalWarp(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr MaskTexture, float Intensity, float Rotation, float GradientAngle);
+		static TiledBlobPtr CreateNonUniformDirectionalWarp(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr MaskTexture, float Intensity, float GradientAngle);
+		static TiledBlobPtr CreateDirectionalDistance(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Distance, float GradientAngle, int32 Samples, float Threshold);
+		static TiledBlobPtr CreateShapeSplatter(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr MaskTexture, float CountX, float CountY, float Scale, float Threshold);
+		static TiledBlobPtr CreateClouds2(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, float Scale, float Contrast, float Bias, float OffsetX, float OffsetY, int32 Seed);
+		static TiledBlobPtr CreateBnWSpots(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, float Scale, float Threshold, float Smoothness, float OffsetX, float OffsetY, int32 Seed);
+		static TiledBlobPtr CreateGrungeDirt(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, float Scale, float Contrast, float Bias, float OffsetX, float OffsetY, int32 Seed);
+		static TiledBlobPtr CreateHighpass(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Radius, float Contrast);
+		static TiledBlobPtr CreateLuminanceHighpass(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Radius, float Contrast);
+		static TiledBlobPtr CreateCurvatureSobel(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Radius, float Intensity);
+
+static TiledBlobPtr CreateTileGenerator(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, int32 OutputMode, int32 PatternType, int32 Seed, float CountX, float CountY, float Scale, float Spacing, float OffsetX, float OffsetY, float Rotation, float PositionJitter, float SizeJitter, float RotationJitter, float LuminanceJitter);
 		static TiledBlobPtr CreateTileSampler(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr Mask, TiledBlobPtr ScaleMap, TiledBlobPtr RotationMap, int32 Seed, float CountX, float CountY, float Scale, float Spacing, float Rotation, float PositionJitter, float SizeJitter, float RotationJitter);
 		static TiledBlobPtr CreateGradientMap(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, const FGradientMapSettings& Settings);
 		static TiledBlobPtr CreateNormalCombine(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr BaseNormal, TiledBlobPtr DetailNormal, TiledBlobPtr Mask, int32 BlendMode, float DetailStrength, bool bInvertGreen);

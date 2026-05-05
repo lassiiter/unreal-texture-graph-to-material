@@ -7,6 +7,22 @@
 #include "TextureGraphEngine.h"
 #include "Transform/Utility/T_CombineTiledBlob.h"
 
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBFloodFillToRandomGrayscale, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBFloodFillToRandomGrayscale", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBFloodFillToRandomColor, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBFloodFillToRandomColor", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBFloodFillToGradient, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBFloodFillToGradient", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBFloodFillToPosition, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBFloodFillToPosition", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBFloodFillMapper, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBFloodFillMapper", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBMultiDirectionalWarp, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBMultiDirectionalWarp", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBNonUniformDirectionalWarp, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBNonUniformDirectionalWarp", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBDirectionalDistance, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBDirectionalDistance", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBShapeSplatter, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBShapeSplatter", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBClouds2, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBClouds2", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBBnWSpots, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBBnWSpots", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBGrungeDirt, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBGrungeDirt", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBHighpass, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBHighpass", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBLuminanceHighpass, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBLuminanceHighpass", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBCurvatureSobel, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBCurvatureSobel", SF_Pixel);
+
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBTileGenerator, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBTileGenerator", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBTileSampler, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBTileSampler", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBGradientMap, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBGradientMap", SF_Pixel);
@@ -71,7 +87,250 @@ namespace UE::TextureGraphMaterialBridge
 		}
 	}
 
-	TiledBlobPtr FDesignerTransforms::CreateTileGenerator(
+	
+	TiledBlobPtr FDesignerTransforms::CreateFloodFillToRandomGrayscale(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 Seed) {
+		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source ? Source : TextureHelper::GetBlack());
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, CombinedSource);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBFloodFillToRandomGrayscale>(Cycle, TargetId, TEXT("TGMB_FloodFillToRandomGrayscale"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
+			->AddArg(ARG_INT(Seed, "Seed"))
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB FloodFillToRandomGrayscale"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateFloodFillToRandomColor(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 Seed) {
+		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source ? Source : TextureHelper::GetBlack());
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, CombinedSource);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBFloodFillToRandomColor>(Cycle, TargetId, TEXT("TGMB_FloodFillToRandomColor"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
+			->AddArg(ARG_INT(Seed, "Seed"))
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB FloodFillToRandomColor"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateFloodFillToGradient(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float GradientAngle, float RotationJitter, int32 Seed) {
+		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source ? Source : TextureHelper::GetBlack());
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, CombinedSource);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBFloodFillToGradient>(Cycle, TargetId, TEXT("TGMB_FloodFillToGradient"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
+			->AddArg(ARG_FLOAT(GradientAngle, "GradientAngle"))
+			->AddArg(ARG_FLOAT(RotationJitter, "RotationJitter"))
+			->AddArg(ARG_INT(Seed, "Seed"))
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB FloodFillToGradient"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateFloodFillToPosition(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source) {
+		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source ? Source : TextureHelper::GetBlack());
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, CombinedSource);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBFloodFillToPosition>(Cycle, TargetId, TEXT("TGMB_FloodFillToPosition"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB FloodFillToPosition"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateFloodFillMapper(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr MaskTexture) {
+		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source ? Source : TextureHelper::GetBlack());
+		TiledBlobPtr CombinedMaskTexture = CombineIfNeeded(Cycle, TargetId, MaskTexture ? MaskTexture : TextureHelper::GetBlack());
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, CombinedSource);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBFloodFillMapper>(Cycle, TargetId, TEXT("TGMB_FloodFillMapper"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
+			->AddArg(ARG_BLOB(CombinedMaskTexture, "MaskTexture"))
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB FloodFillMapper"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateMultiDirectionalWarp(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr MaskTexture, float Intensity, float Rotation, float GradientAngle) {
+		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source ? Source : TextureHelper::GetBlack());
+		TiledBlobPtr CombinedMaskTexture = CombineIfNeeded(Cycle, TargetId, MaskTexture ? MaskTexture : TextureHelper::GetBlack());
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, CombinedSource);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBMultiDirectionalWarp>(Cycle, TargetId, TEXT("TGMB_MultiDirectionalWarp"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
+			->AddArg(ARG_BLOB(CombinedMaskTexture, "MaskTexture"))
+			->AddArg(ARG_FLOAT(Intensity, "Intensity"))
+			->AddArg(ARG_FLOAT(Rotation, "Rotation"))
+			->AddArg(ARG_FLOAT(GradientAngle, "GradientAngle"))
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB MultiDirectionalWarp"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateNonUniformDirectionalWarp(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr MaskTexture, float Intensity, float GradientAngle) {
+		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source ? Source : TextureHelper::GetBlack());
+		TiledBlobPtr CombinedMaskTexture = CombineIfNeeded(Cycle, TargetId, MaskTexture ? MaskTexture : TextureHelper::GetBlack());
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, CombinedSource);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBNonUniformDirectionalWarp>(Cycle, TargetId, TEXT("TGMB_NonUniformDirectionalWarp"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
+			->AddArg(ARG_BLOB(CombinedMaskTexture, "MaskTexture"))
+			->AddArg(ARG_FLOAT(Intensity, "Intensity"))
+			->AddArg(ARG_FLOAT(GradientAngle, "GradientAngle"))
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB NonUniformDirectionalWarp"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateDirectionalDistance(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Distance, float GradientAngle, int32 Samples, float Threshold) {
+		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source ? Source : TextureHelper::GetBlack());
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, CombinedSource);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBDirectionalDistance>(Cycle, TargetId, TEXT("TGMB_DirectionalDistance"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
+			->AddArg(ARG_FLOAT(Distance, "Distance"))
+			->AddArg(ARG_FLOAT(GradientAngle, "GradientAngle"))
+			->AddArg(ARG_INT(Samples, "Samples"))
+			->AddArg(ARG_FLOAT(Threshold, "Threshold"))
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB DirectionalDistance"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateShapeSplatter(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr MaskTexture, float CountX, float CountY, float Scale, float Threshold) {
+		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source ? Source : TextureHelper::GetBlack());
+		TiledBlobPtr CombinedMaskTexture = CombineIfNeeded(Cycle, TargetId, MaskTexture ? MaskTexture : TextureHelper::GetBlack());
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, CombinedSource);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBShapeSplatter>(Cycle, TargetId, TEXT("TGMB_ShapeSplatter"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
+			->AddArg(ARG_BLOB(CombinedMaskTexture, "MaskTexture"))
+			->AddArg(ARG_FLOAT(CountX, "CountX"))
+			->AddArg(ARG_FLOAT(CountY, "CountY"))
+			->AddArg(ARG_FLOAT(Scale, "Scale"))
+			->AddArg(ARG_FLOAT(Threshold, "Threshold"))
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB ShapeSplatter"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateClouds2(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, float Scale, float Contrast, float Bias, float OffsetX, float OffsetY, int32 Seed) {
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, nullptr);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBClouds2>(Cycle, TargetId, TEXT("TGMB_Clouds2"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_FLOAT(Scale, "Scale"))
+			->AddArg(ARG_FLOAT(Contrast, "Contrast"))
+			->AddArg(ARG_FLOAT(Bias, "Bias"))
+			->AddArg(ARG_FLOAT(OffsetX, "OffsetX"))
+			->AddArg(ARG_FLOAT(OffsetY, "OffsetY"))
+			->AddArg(ARG_INT(Seed, "Seed"))
+			->AddArg(std::make_shared<JobArg_ForceTiling>())
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB Clouds2"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateBnWSpots(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, float Scale, float Threshold, float Smoothness, float OffsetX, float OffsetY, int32 Seed) {
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, nullptr);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBBnWSpots>(Cycle, TargetId, TEXT("TGMB_BnWSpots"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_FLOAT(Scale, "Scale"))
+			->AddArg(ARG_FLOAT(Threshold, "Threshold"))
+			->AddArg(ARG_FLOAT(Smoothness, "Smoothness"))
+			->AddArg(ARG_FLOAT(OffsetX, "OffsetX"))
+			->AddArg(ARG_FLOAT(OffsetY, "OffsetY"))
+			->AddArg(ARG_INT(Seed, "Seed"))
+			->AddArg(std::make_shared<JobArg_ForceTiling>())
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB BnWSpots"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateGrungeDirt(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, float Scale, float Contrast, float Bias, float OffsetX, float OffsetY, int32 Seed) {
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, nullptr);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBGrungeDirt>(Cycle, TargetId, TEXT("TGMB_GrungeDirt"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_FLOAT(Scale, "Scale"))
+			->AddArg(ARG_FLOAT(Contrast, "Contrast"))
+			->AddArg(ARG_FLOAT(Bias, "Bias"))
+			->AddArg(ARG_FLOAT(OffsetX, "OffsetX"))
+			->AddArg(ARG_FLOAT(OffsetY, "OffsetY"))
+			->AddArg(ARG_INT(Seed, "Seed"))
+			->AddArg(std::make_shared<JobArg_ForceTiling>())
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB GrungeDirt"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateHighpass(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Radius, float Contrast) {
+		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source ? Source : TextureHelper::GetBlack());
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, CombinedSource);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBHighpass>(Cycle, TargetId, TEXT("TGMB_Highpass"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
+			->AddArg(ARG_FLOAT(Radius, "Radius"))
+			->AddArg(ARG_FLOAT(Contrast, "Contrast"))
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB Highpass"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateLuminanceHighpass(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Radius, float Contrast) {
+		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source ? Source : TextureHelper::GetBlack());
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, CombinedSource);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBLuminanceHighpass>(Cycle, TargetId, TEXT("TGMB_LuminanceHighpass"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
+			->AddArg(ARG_FLOAT(Radius, "Radius"))
+			->AddArg(ARG_FLOAT(Contrast, "Contrast"))
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB LuminanceHighpass"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateCurvatureSobel(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Radius, float Intensity) {
+		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source ? Source : TextureHelper::GetBlack());
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, CombinedSource);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBCurvatureSobel>(Cycle, TargetId, TEXT("TGMB_CurvatureSobel"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
+			->AddArg(ARG_FLOAT(Radius, "Radius"))
+			->AddArg(ARG_FLOAT(Intensity, "Intensity"))
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB CurvatureSobel"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+TiledBlobPtr FDesignerTransforms::CreateTileGenerator(
 		MixUpdateCyclePtr Cycle,
 		BufferDescriptor DesiredDesc,
 		int32 TargetId,

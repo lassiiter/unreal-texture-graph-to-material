@@ -407,3 +407,165 @@ float4 FSH_TGMBMultiMaterialBlend(float2 UV : TEXCOORD0) : SV_Target0
 	}
 	return lerp(ABaseColor.Sample(SamplerStates_Linear_Wrap, UV), BBaseColor.Sample(SamplerStates_Linear_Wrap, UV), Mask);
 }
+
+float4 FSH_TGMBFloodFillToRandomGrayscale(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float4 Data = SourceTexture.Sample(SamplerStates_Linear_Wrap, UV);
+	if (Data.x == 0.0 && Data.y == 0.0 && Data.z == 0.0) return 0.0;
+	float R = TGMB_Hash12(Data.z + Seed);
+	return float4(R.xxx, 1.0);
+}
+
+float4 FSH_TGMBFloodFillToRandomColor(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float4 Data = SourceTexture.Sample(SamplerStates_Linear_Wrap, UV);
+	if (Data.x == 0.0 && Data.y == 0.0 && Data.z == 0.0) return 0.0;
+	float3 R = float3(TGMB_Hash12(Data.z + Seed), TGMB_Hash12(Data.z + Seed + 17.0), TGMB_Hash12(Data.z + Seed + 31.0));
+	return float4(R, 1.0);
+}
+
+float4 FSH_TGMBFloodFillToGradient(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float4 Data = SourceTexture.Sample(SamplerStates_Linear_Wrap, UV);
+	if (Data.x == 0.0 && Data.y == 0.0 && Data.z == 0.0) return 0.0;
+	float Angle = GradientAngle + (TGMB_Hash12(Data.z + Seed * 13.0) - 0.5) * RotationJitter;
+	float2 Direction = float2(cos(Angle), sin(Angle));
+	float G = saturate(dot(frac(Data.xy * 64.0), Direction) * 0.5 + 0.5); 
+	return float4(G.xxx, 1.0);
+}
+
+float4 FSH_TGMBFloodFillToPosition(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float4 Data = SourceTexture.Sample(SamplerStates_Linear_Wrap, UV);
+	if (Data.x == 0.0 && Data.y == 0.0 && Data.z == 0.0) return 0.0;
+	return float4(Data.xy, 0.0, 1.0);
+}
+
+float4 FSH_TGMBFloodFillMapper(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float4 Data = SourceTexture.Sample(SamplerStates_Linear_Wrap, UV);
+	if (Data.x == 0.0 && Data.y == 0.0 && Data.z == 0.0) return 0.0;
+	float2 MappedUV = frac(Data.xy * 64.0);
+	return MaskTexture.Sample(SamplerStates_Linear_Wrap, MappedUV);
+}
+
+float4 FSH_TGMBMultiDirectionalWarp(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float Mask = TGMB_SampleLuma(MaskTexture, LayerUV);
+	float Angle = Mask * 6.2831853 * Rotation + GradientAngle;
+	float2 Offset = float2(cos(Angle), sin(Angle)) * Intensity * 0.1;
+	return SourceTexture.Sample(SamplerStates_Linear_Wrap, LayerUV + Offset);
+}
+
+float4 FSH_TGMBNonUniformDirectionalWarp(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float Mask = TGMB_SampleLuma(MaskTexture, LayerUV);
+	float Angle = GradientAngle;
+	float2 Offset = float2(cos(Angle), sin(Angle)) * Intensity * Mask * 0.1;
+	return SourceTexture.Sample(SamplerStates_Linear_Wrap, LayerUV + Offset);
+}
+
+float4 FSH_TGMBDirectionalDistance(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float2 Direction = float2(cos(GradientAngle), sin(GradientAngle));
+	int Count = clamp(Samples, 1, 128);
+	float MaxDist = max(Distance, 0.001);
+	float MinD = 1.0;
+	for (int i = 0; i < 128; ++i)
+	{
+		if (i >= Count) break;
+		float D = (float(i) / float(Count)) * MaxDist;
+		float Mask = TGMB_SampleLuma(SourceTexture, LayerUV + Direction * D);
+		if (Mask > Threshold)
+		{
+			MinD = D / MaxDist;
+			break;
+		}
+	}
+	return float4((1.0 - MinD).xxx, 1.0);
+}
+
+float4 FSH_TGMBShapeSplatter(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float2 Counts = max(float2(CountX, CountY), 1.0);
+	float2 GridUV = LayerUV * Counts;
+	float2 Cell = floor(GridUV);
+	float Mask = TGMB_SampleLuma(MaskTexture, LayerUV);
+	if (Mask < Threshold) return 0.0;
+
+	float2 Local = frac(GridUV) - 0.5;
+	float TileScale = max(Scale * Mask, 0.001);
+	float2 SampleUV = Local / TileScale + 0.5;
+	float InCell = min(step(0.0, SampleUV.x) * step(SampleUV.x, 1.0), step(0.0, SampleUV.y) * step(SampleUV.y, 1.0));
+	return SourceTexture.Sample(SamplerStates_Linear_Wrap, SampleUV) * InCell;
+}
+
+float4 FSH_TGMBClouds2(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float Noise = TGMB_Fbm((LayerUV + float2(OffsetX, OffsetY)) * Scale + Seed, 6);
+	Noise = pow(saturate(Noise * Contrast + Bias), 2.0);
+	return float4(Noise.xxx, 1.0);
+}
+
+float4 FSH_TGMBBnWSpots(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float Noise = TGMB_Fbm((LayerUV + float2(OffsetX, OffsetY)) * Scale + Seed, 3);
+	float Spot = smoothstep(Threshold, Threshold + Smoothness, Noise);
+	return float4(Spot.xxx, 1.0);
+}
+
+float4 FSH_TGMBGrungeDirt(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float Noise1 = TGMB_Fbm((LayerUV + float2(OffsetX, OffsetY)) * Scale + Seed, 5);
+	float Noise2 = TGMB_Fbm((LayerUV + float2(OffsetX, OffsetY)) * Scale * 2.0 + Seed * 1.3, 4);
+	float Dirt = saturate((Noise1 * 0.7 + Noise2 * 0.3) * Contrast + Bias);
+	return float4(Dirt.xxx, 1.0);
+}
+
+float4 FSH_TGMBHighpass(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float2 Resolution = TileInfo_layerResolution();
+	float2 Texel = rcp(max(Resolution, 1.0)) * Radius;
+
+	float4 Center = SourceTexture.Sample(SamplerStates_Linear_Wrap, LayerUV);
+	float4 Blur = 0.0;
+	float Weight = 0.0;
+	for (int y = -2; y <= 2; ++y)
+	{
+		for (int x = -2; x <= 2; ++x)
+		{
+			float W = exp(-0.5 * (x*x + y*y));
+			Blur += SourceTexture.Sample(SamplerStates_Linear_Wrap, LayerUV + float2(x, y) * Texel) * W;
+			Weight += W;
+		}
+	}
+	Blur /= Weight;
+	return saturate(0.5 + (Center - Blur) * Contrast);
+}
+
+float4 FSH_TGMBLuminanceHighpass(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float4 Color = FSH_TGMBHighpass(UV);
+	float Luma = TGMB_Luma(Color);
+	return float4(Luma.xxx, 1.0);
+}
+
+float4 FSH_TGMBCurvatureSobel(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float2 Resolution = TileInfo_layerResolution();
+	float2 Texel = rcp(max(Resolution, 1.0)) * max(Radius, 1.0);
+
+	float EdgeX, EdgeY;
+	TGMB_Sobel(SourceTexture, LayerUV, Texel, EdgeX, EdgeY);
+	float Curvature = (abs(EdgeX) + abs(EdgeY)) * Intensity;
+	return float4(saturate(Curvature).xxx, 1.0);
+}

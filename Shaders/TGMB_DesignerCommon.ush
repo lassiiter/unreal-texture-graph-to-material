@@ -54,3 +54,44 @@ float TGMB_SampleLuma(Texture2D Tex, float2 UV)
 {
 	return TGMB_Luma(Tex.Sample(SamplerStates_Linear_Wrap, UV));
 }
+
+float TGMB_ValueNoise(float2 P)
+{
+	float2 i = floor(P);
+	float2 f = frac(P);
+	float2 u = f * f * (3.0 - 2.0 * f);
+	return lerp(
+		lerp(TGMB_Hash12(i + float2(0.0, 0.0)), TGMB_Hash12(i + float2(1.0, 0.0)), u.x),
+		lerp(TGMB_Hash12(i + float2(0.0, 1.0)), TGMB_Hash12(i + float2(1.0, 1.0)), u.x),
+		u.y
+	);
+}
+
+float TGMB_Fbm(float2 P, int Octaves)
+{
+	float Value = 0.0;
+	float Amplitude = 0.5;
+	for (int i = 0; i < 8; ++i)
+	{
+		if (i >= Octaves) break;
+		Value += Amplitude * TGMB_ValueNoise(P);
+		P *= 2.0;
+		Amplitude *= 0.5;
+	}
+	return Value;
+}
+
+void TGMB_Sobel(Texture2D Tex, float2 UV, float2 Texel, out float EdgeX, out float EdgeY)
+{
+	float TL = TGMB_SampleLuma(Tex, UV + float2(-Texel.x, -Texel.y));
+	float TC = TGMB_SampleLuma(Tex, UV + float2(0, -Texel.y));
+	float TR = TGMB_SampleLuma(Tex, UV + float2(Texel.x, -Texel.y));
+	float L  = TGMB_SampleLuma(Tex, UV + float2(-Texel.x, 0));
+	float R  = TGMB_SampleLuma(Tex, UV + float2(Texel.x, 0));
+	float BL = TGMB_SampleLuma(Tex, UV + float2(-Texel.x, Texel.y));
+	float BC = TGMB_SampleLuma(Tex, UV + float2(0, Texel.y));
+	float BR = TGMB_SampleLuma(Tex, UV + float2(Texel.x, Texel.y));
+
+	EdgeX = (TR + 2.0 * R + BR) - (TL + 2.0 * L + BL);
+	EdgeY = (BL + 2.0 * BC + BR) - (TL + 2.0 * TC + TR);
+}

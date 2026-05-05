@@ -40,6 +40,82 @@ namespace
 	}
 }
 
+
+void UTG_Expression_TGMB_FloodFillToRandomGrayscale::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateFloodFillToRandomGrayscale(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, Seed);
+}
+
+void UTG_Expression_TGMB_FloodFillToRandomColor::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateFloodFillToRandomColor(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, Seed);
+}
+
+void UTG_Expression_TGMB_FloodFillToGradient::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateFloodFillToGradient(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, GradientAngle, RotationJitter, Seed);
+}
+
+void UTG_Expression_TGMB_FloodFillToPosition::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateFloodFillToPosition(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob);
+}
+
+void UTG_Expression_TGMB_FloodFillMapper::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateFloodFillMapper(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, MaskTexture.RasterBlob);
+}
+
+void UTG_Expression_TGMB_MultiDirectionalWarp::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateMultiDirectionalWarp(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, MaskTexture.RasterBlob, Intensity, Rotation, GradientAngle);
+}
+
+void UTG_Expression_TGMB_NonUniformDirectionalWarp::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateNonUniformDirectionalWarp(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, MaskTexture.RasterBlob, Intensity, GradientAngle);
+}
+
+void UTG_Expression_TGMB_DirectionalDistance::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateDirectionalDistance(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, Distance, GradientAngle, Samples, Threshold);
+}
+
+void UTG_Expression_TGMB_ShapeSplatter::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateShapeSplatter(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, MaskTexture.RasterBlob, CountX, CountY, Scale, Threshold);
+}
+
+void UTG_Expression_TGMB_Clouds2::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateClouds2(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Scale, Contrast, Bias, OffsetX, OffsetY, Seed);
+}
+
+void UTG_Expression_TGMB_BnWSpots::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateBnWSpots(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Scale, Threshold, Smoothness, OffsetX, OffsetY, Seed);
+}
+
+void UTG_Expression_TGMB_GrungeDirt::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateGrungeDirt(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Scale, Contrast, Bias, OffsetX, OffsetY, Seed);
+}
+
+void UTG_Expression_TGMB_Highpass::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateHighpass(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, Radius, Contrast);
+}
+
+void UTG_Expression_TGMB_LuminanceHighpass::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateLuminanceHighpass(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, Radius, Contrast);
+}
+
+void UTG_Expression_TGMB_CurvatureSobel::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateCurvatureSobel(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, Radius, Intensity);
+}
+
 void UTG_Expression_TGMB_TileGenerator::Evaluate(FTG_EvaluationContext* InContext)
 {
 	Super::Evaluate(InContext);
@@ -118,6 +194,17 @@ void UTG_Expression_TGMB_NormalCombine::Evaluate(FTG_EvaluationContext* InContex
 void UTG_Expression_TGMB_FloodFill::Evaluate(FTG_EvaluationContext* InContext)
 {
 	Super::Evaluate(InContext);
+
+	FloodFillData = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateFloodFill(
+		InContext->Cycle,
+		FloodFillData.GetBufferDescriptor(),
+		InContext->TargetId,
+		Input.RasterBlob,
+		2, // OutputMode 2 for data
+		static_cast<int32>(Connectivity),
+		Seed,
+		Threshold,
+		GradientAngle);
 
 	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateFloodFill(
 		InContext->Cycle,

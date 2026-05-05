@@ -13,20 +13,78 @@ The plugin adds material expression nodes for Texture Graph outputs, refreshes l
 - Auto-wires common outputs such as base color, normal, emissive, ambient occlusion, roughness, and metallic.
 - Supports common ORM packing conventions for ambient occlusion, roughness, and metallic channels.
 
-## Additional Texture Graph Nodes
+## Designer-Style Texture Graph Nodes
 
-The plugin also adds UE-native, Designer-style Texture Graph nodes for common material-authoring workflows:
+The plugin adds UE-native, Designer-style Texture Graph nodes for common material-authoring workflows, complementing what Unreal already provides out-of-the-box.
 
+### Native UE Equivalents
+
+Do not look for the following nodes in this plugin; Unreal Engine's Texture Graph natively provides their equivalents:
+
+- **Blend** (Native: `Blend` / `Math` nodes)
+- **Levels** (Native: `Levels`)
+- **Transform** (Native: `Transform`)
+- **Uniform Color** (Native: `Color` / `Vector` constants)
+- **Output** (Native: `Output`)
+- **Histogram Scan / Range** (Native: `Histogram`)
+- **Invert** (Native: `Invert` / `OneMinus`)
+- **Edge Detect** (Native: `Edge Detect`)
+- **Shape** (Native: `Shape`)
+- **Perlin Noise** (Native: `Noise` nodes)
+- **Warp / Directional Warp** (Native: `Warp`)
+- **Blur** (Native: `Blur`)
+- **Normal From Height** (Native: `Normal From Height`)
+
+### Plugin Nodes
+
+The plugin adds the following GPU-backed, Designer-style nodes:
+
+#### Base Pattern & Scattering
 - Tile Generator
 - Tile Sampler
+- Shape Splatter
+
+#### Flood Fill & Converters
 - Flood Fill
+- Flood Fill to Random Grayscale
+- Flood Fill to Random Color
+- Flood Fill to Gradient
+- Flood Fill to Position
+- Flood Fill Mapper
+
+#### Noise & Grunge
+- Clouds 2
+- BnW Spots
+- Grunge Dirt
+
+#### Warping & Distance
+- Multi Directional Warp
+- Non-Uniform Directional Warp
+- Directional Distance
+
+#### Filters & Blur
 - Slope Blur
 - Gradient Map
+- Highpass
+- Luminance Highpass
+
+#### Normal & Surface Details
 - Bevel
 - Ambient Occlusion HBAO
-- Normal Combine
 - Curvature Smooth
+- Curvature Sobel
+- Normal Combine
+
+#### Blending
 - Multi-Material Blend
+
+### Out of Scope
+
+The following items are intentionally out of scope for this pass:
+- Exact Substance Designer pixel parity (nodes provide useful UE-native approximations).
+- Bundled bitmap grunge libraries (grunge/dirt nodes are procedural shader-generated textures).
+- Material asset inputs.
+- Mesh-bake generators.
 
 ## Typical Workflow
 
