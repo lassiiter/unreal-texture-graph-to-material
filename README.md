@@ -53,6 +53,10 @@ The plugin adds the following GPU-backed, Designer-style nodes:
 - Flood Fill Mapper
 
 #### Noise & Grunge
+- Cells 1
+- Cells 2
+- Cells 3
+- Cells 4
 - Clouds 2
 - BnW Spots
 - Grunge Dirt

@@ -86,6 +86,89 @@ void UTG_Expression_TGMB_ShapeSplatter::Evaluate(FTG_EvaluationContext* InContex
 	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateShapeSplatter(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, MaskTexture.RasterBlob, CountX, CountY, Scale, Threshold);
 }
 
+void UTG_Expression_TGMB_Cells1::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateCells1(
+		InContext->Cycle,
+		Output.GetBufferDescriptor(),
+		InContext->TargetId,
+		Scale,
+		Disorder,
+		DisorderSpeed,
+		DisorderAnisotropy,
+		DisorderAnisotropyAngle,
+		static_cast<int32>(Pattern),
+		PatternSize.X,
+		PatternSize.Y,
+		PatternScale,
+		LuminanceRandom,
+		Angle,
+		AngleRandom,
+		TileOffset.X,
+		TileOffset.Y,
+		bNonSquareExpansion,
+		Seed);
+}
+
+void UTG_Expression_TGMB_Cells2::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateCells2(
+		InContext->Cycle,
+		Output.GetBufferDescriptor(),
+		InContext->TargetId,
+		Scale,
+		EdgeWidth,
+		bInvert,
+		Disorder,
+		DisorderSpeed,
+		TileOffset.X,
+		TileOffset.Y,
+		bNonSquareExpansion,
+		Seed);
+}
+
+void UTG_Expression_TGMB_Cells3::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateCells3(
+		InContext->Cycle,
+		Output.GetBufferDescriptor(),
+		InContext->TargetId,
+		Scale,
+		Hardness,
+		bInvert,
+		Disorder,
+		DisorderSpeed,
+		DisorderAnisotropy,
+		DisorderAnisotropyAngle,
+		PatternSize.X,
+		PatternSize.Y,
+		PatternScale,
+		Angle,
+		AngleRandom,
+		TileOffset.X,
+		TileOffset.Y,
+		bNonSquareExpansion,
+		Seed);
+}
+
+void UTG_Expression_TGMB_Cells4::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateCells4(
+		InContext->Cycle,
+		Output.GetBufferDescriptor(),
+		InContext->TargetId,
+		Input.RasterBlob,
+		Scale,
+		Disorder,
+		DisorderSpeed,
+		static_cast<int32>(ColorSource),
+		PseudorandomSeed,
+		TileOffset.X,
+		TileOffset.Y,
+		bNonSquareExpansion,
+		Seed);
+}
+
 void UTG_Expression_TGMB_Clouds2::Evaluate(FTG_EvaluationContext* InContext) {
 	Super::Evaluate(InContext);
 	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateClouds2(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Scale, Contrast, Bias, OffsetX, OffsetY, Seed);

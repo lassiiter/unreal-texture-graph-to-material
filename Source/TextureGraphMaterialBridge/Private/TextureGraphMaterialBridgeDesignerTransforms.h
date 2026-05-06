@@ -147,6 +147,105 @@ public:
 	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
 };
 
+class FSH_TGMBCells1 : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBCells1, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBCells1, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER(float, Scale)
+		SHADER_PARAMETER(float, Disorder)
+		SHADER_PARAMETER(float, DisorderSpeed)
+		SHADER_PARAMETER(float, DisorderAnisotropy)
+		SHADER_PARAMETER(float, DisorderAnisotropyAngle)
+		SHADER_PARAMETER(int32, PatternType)
+		SHADER_PARAMETER(float, PatternSizeX)
+		SHADER_PARAMETER(float, PatternSizeY)
+		SHADER_PARAMETER(float, PatternScale)
+		SHADER_PARAMETER(float, LuminanceRandom)
+		SHADER_PARAMETER(float, Angle)
+		SHADER_PARAMETER(float, AngleRandom)
+		SHADER_PARAMETER(float, OffsetX)
+		SHADER_PARAMETER(float, OffsetY)
+		SHADER_PARAMETER(float, NonSquareExpansion)
+		SHADER_PARAMETER(int32, Seed)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBCells2 : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBCells2, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBCells2, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER(float, Scale)
+		SHADER_PARAMETER(float, EdgeWidth)
+		SHADER_PARAMETER(float, Invert)
+		SHADER_PARAMETER(float, Disorder)
+		SHADER_PARAMETER(float, DisorderSpeed)
+		SHADER_PARAMETER(float, OffsetX)
+		SHADER_PARAMETER(float, OffsetY)
+		SHADER_PARAMETER(float, NonSquareExpansion)
+		SHADER_PARAMETER(int32, Seed)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBCells3 : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBCells3, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBCells3, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER(float, Scale)
+		SHADER_PARAMETER(float, Hardness)
+		SHADER_PARAMETER(float, Invert)
+		SHADER_PARAMETER(float, Disorder)
+		SHADER_PARAMETER(float, DisorderSpeed)
+		SHADER_PARAMETER(float, DisorderAnisotropy)
+		SHADER_PARAMETER(float, DisorderAnisotropyAngle)
+		SHADER_PARAMETER(float, PatternSizeX)
+		SHADER_PARAMETER(float, PatternSizeY)
+		SHADER_PARAMETER(float, PatternScale)
+		SHADER_PARAMETER(float, Angle)
+		SHADER_PARAMETER(float, AngleRandom)
+		SHADER_PARAMETER(float, OffsetX)
+		SHADER_PARAMETER(float, OffsetY)
+		SHADER_PARAMETER(float, NonSquareExpansion)
+		SHADER_PARAMETER(int32, Seed)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
+class FSH_TGMBCells4 : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBCells4, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBCells4, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+		SHADER_PARAMETER(float, Scale)
+		SHADER_PARAMETER(float, Disorder)
+		SHADER_PARAMETER(float, DisorderSpeed)
+		SHADER_PARAMETER(int32, ColorSource)
+		SHADER_PARAMETER(int32, PseudorandomSeed)
+		SHADER_PARAMETER(float, OffsetX)
+		SHADER_PARAMETER(float, OffsetY)
+		SHADER_PARAMETER(float, NonSquareExpansion)
+		SHADER_PARAMETER(int32, Seed)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
 class FSH_TGMBClouds2 : public FSH_Base {
 public:
 	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBClouds2, UE_API);
@@ -520,6 +619,10 @@ namespace UE::TextureGraphMaterialBridge
 		static TiledBlobPtr CreateNonUniformDirectionalWarp(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr MaskTexture, float Intensity, float GradientAngle);
 		static TiledBlobPtr CreateDirectionalDistance(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Distance, float GradientAngle, int32 Samples, float Threshold);
 		static TiledBlobPtr CreateShapeSplatter(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr MaskTexture, float CountX, float CountY, float Scale, float Threshold);
+		static TiledBlobPtr CreateCells1(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, int32 Scale, float Disorder, float DisorderSpeed, float DisorderAnisotropy, float DisorderAnisotropyAngle, int32 PatternType, float PatternSizeX, float PatternSizeY, float PatternScale, float LuminanceRandom, float Angle, float AngleRandom, float OffsetX, float OffsetY, bool bNonSquareExpansion, int32 Seed);
+		static TiledBlobPtr CreateCells2(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, int32 Scale, float EdgeWidth, bool bInvert, float Disorder, float DisorderSpeed, float OffsetX, float OffsetY, bool bNonSquareExpansion, int32 Seed);
+		static TiledBlobPtr CreateCells3(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, int32 Scale, float Hardness, bool bInvert, float Disorder, float DisorderSpeed, float DisorderAnisotropy, float DisorderAnisotropyAngle, float PatternSizeX, float PatternSizeY, float PatternScale, float Angle, float AngleRandom, float OffsetX, float OffsetY, bool bNonSquareExpansion, int32 Seed);
+		static TiledBlobPtr CreateCells4(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 Scale, float Disorder, float DisorderSpeed, int32 ColorSource, int32 PseudorandomSeed, float OffsetX, float OffsetY, bool bNonSquareExpansion, int32 Seed);
 		static TiledBlobPtr CreateClouds2(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, float Scale, float Contrast, float Bias, float OffsetX, float OffsetY, int32 Seed);
 		static TiledBlobPtr CreateBnWSpots(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, float Scale, float Threshold, float Smoothness, float OffsetX, float OffsetY, int32 Seed);
 		static TiledBlobPtr CreateGrungeDirt(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, float Scale, float Contrast, float Bias, float OffsetX, float OffsetY, int32 Seed);

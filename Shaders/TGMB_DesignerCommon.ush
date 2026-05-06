@@ -12,6 +12,11 @@ float TGMB_Hash12(float2 P)
 	return frac((P3.x + P3.y) * P3.z);
 }
 
+float TGMB_Hash11(float P)
+{
+	return TGMB_Hash12(float2(P, P * 1.37 + 19.19));
+}
+
 float2 TGMB_Hash22(float2 P)
 {
 	float3 P3 = frac(float3(P.xyx) * float3(0.1031, 0.1030, 0.0973));
@@ -79,6 +84,186 @@ float TGMB_Fbm(float2 P, int Octaves)
 		Amplitude *= 0.5;
 	}
 	return Value;
+}
+
+float TGMB_TurnsToRadians(float Turns)
+{
+	return Turns * 6.2831853;
+}
+
+float2 TGMB_CellPlaneUV(float2 UV, float2 Resolution, float2 TileOffset, float NonSquareExpansion)
+{
+	float2 SafeResolution = max(Resolution, 1.0);
+	float MinDimension = max(min(SafeResolution.x, SafeResolution.y), 1.0);
+	float2 Aspect = SafeResolution / MinDimension;
+	float2 ExpandedUV = (UV - 0.5) * Aspect + 0.5;
+	return lerp(UV, ExpandedUV, saturate(NonSquareExpansion)) + TileOffset;
+}
+
+float2 TGMB_CellJitter(float2 Cell, int InSeed, float Disorder, float DisorderSpeed, float DisorderAnisotropy, float DisorderAnisotropyAngle)
+{
+	float2 Offset = TGMB_Hash22(Cell + InSeed * 19.19) - 0.5;
+	float2 Axis = float2(cos(TGMB_TurnsToRadians(DisorderAnisotropyAngle)), sin(TGMB_TurnsToRadians(DisorderAnisotropyAngle)));
+	float2 AnisotropicOffset = Axis * dot(Offset, Axis);
+	Offset = lerp(Offset, AnisotropicOffset, saturate(DisorderAnisotropy));
+	float SafeSpeed = clamp(DisorderSpeed, 0.0, 8.0);
+	float Amplitude = saturate((1.0 - exp2(-SafeSpeed)) / (1.0 - exp2(-8.0)));
+	return Offset * saturate(Disorder) * Amplitude;
+}
+
+struct FTGMB_CellInfo
+{
+	float2 Cell;
+	float2 SecondCell;
+	float2 Center;
+	float2 SecondCenter;
+	float2 Local;
+	float Distance;
+	float SecondDistance;
+	float Id;
+};
+
+FTGMB_CellInfo TGMB_FindNearestCell(float2 PlaneUV, float Scale, int InSeed, float Disorder, float DisorderSpeed, float DisorderAnisotropy, float DisorderAnisotropyAngle)
+{
+	float CellScale = max(Scale, 1.0);
+	float2 P = PlaneUV * CellScale;
+	float2 BaseCell = floor(P);
+
+	FTGMB_CellInfo Result;
+	Result.Cell = BaseCell;
+	Result.SecondCell = BaseCell;
+	Result.Center = (BaseCell + 0.5) / CellScale;
+	Result.SecondCenter = Result.Center;
+	Result.Local = 0.0;
+	Result.Distance = 9999.0;
+	Result.SecondDistance = 9999.0;
+	Result.Id = 0.0;
+
+	for (int y = -2; y <= 2; ++y)
+	{
+		for (int x = -2; x <= 2; ++x)
+		{
+			float2 Cell = BaseCell + float2(x, y);
+			float2 Center = Cell + 0.5 + TGMB_CellJitter(Cell, InSeed, Disorder, DisorderSpeed, DisorderAnisotropy, DisorderAnisotropyAngle);
+			float2 Local = P - Center;
+			float D = length(Local);
+
+			if (D < Result.Distance)
+			{
+				Result.SecondDistance = Result.Distance;
+				Result.SecondCell = Result.Cell;
+				Result.SecondCenter = Result.Center;
+				Result.Distance = D;
+				Result.Cell = Cell;
+				Result.Center = Center / CellScale;
+				Result.Local = Local;
+				Result.Id = TGMB_Hash12(Cell + InSeed);
+			}
+			else if (D < Result.SecondDistance)
+			{
+				Result.SecondDistance = D;
+				Result.SecondCell = Cell;
+				Result.SecondCenter = Center / CellScale;
+			}
+		}
+	}
+
+	return Result;
+}
+
+float TGMB_CellEdgeDistance(FTGMB_CellInfo CellInfo, float Scale)
+{
+	float CellScale = max(Scale, 1.0);
+	float CenterDistance = max(length((CellInfo.SecondCenter - CellInfo.Center) * CellScale), 0.0001);
+	float DistanceSquaredDelta = CellInfo.SecondDistance * CellInfo.SecondDistance - CellInfo.Distance * CellInfo.Distance;
+	return max(DistanceSquaredDelta / (2.0 * CenterDistance), 0.0);
+}
+
+float TGMB_CellPattern(float2 Local, int PatternType, float2 PatternSize, float PatternScale, float Angle)
+{
+	float2 Size = max(PatternSize * max(PatternScale, 0.001), 0.001);
+	float2 RotatedLocal = TGMB_Rotate(Local, -TGMB_TurnsToRadians(Angle));
+	float2 HalfSize = max(Size * 0.5, 0.001);
+	float Edge = 0.0;
+
+	if (PatternType == 1)
+	{
+		Edge = max(abs(RotatedLocal.x) / HalfSize.x, abs(RotatedLocal.y) / HalfSize.y);
+	}
+	else if (PatternType == 2)
+	{
+		Edge = abs(RotatedLocal.x) / HalfSize.x + abs(RotatedLocal.y) / HalfSize.y;
+	}
+	else if (PatternType == 3)
+	{
+		float2 BarHalfSize = float2(max(HalfSize.x * 0.25, 0.001), HalfSize.y);
+		Edge = max(abs(RotatedLocal.x) / BarHalfSize.x, abs(RotatedLocal.y) / BarHalfSize.y);
+	}
+	else
+	{
+		float2 DiscLocal = RotatedLocal / HalfSize;
+		Edge = length(DiscLocal);
+	}
+
+	float Fill = 1.0 - smoothstep(0.1, 1.0, Edge);
+	float Feather = 1.0 - smoothstep(1.0, 1.2, Edge);
+	return saturate(Fill * 0.8 + Feather * 0.2);
+}
+
+float TGMB_CellsPatternLayer(float2 PlaneUV, float Scale, int PatternType, int InSeed, float Disorder, float DisorderSpeed, float DisorderAnisotropy, float DisorderAnisotropyAngle, float2 PatternSize, float PatternScale, float LuminanceRandom, float Angle, float AngleRandom)
+{
+	float CellScale = max(Scale, 1.0);
+	float2 P = PlaneUV * CellScale;
+	float2 BaseCell = floor(P);
+	float Result = 0.0;
+
+	for (int y = -2; y <= 2; ++y)
+	{
+		for (int x = -2; x <= 2; ++x)
+		{
+			float2 Cell = BaseCell + float2(x, y);
+			float2 Center = Cell + 0.5 + TGMB_CellJitter(Cell, InSeed, Disorder, DisorderSpeed, DisorderAnisotropy, DisorderAnisotropyAngle);
+			float CellAngle = Angle + (TGMB_Hash12(Cell + InSeed * 31.31) - 0.5) * AngleRandom;
+			float Shape = TGMB_CellPattern(P - Center, PatternType, PatternSize, PatternScale, CellAngle);
+			float Luma = 1.0 - TGMB_Hash12(Cell + InSeed * 47.47) * saturate(LuminanceRandom);
+			Result = max(Result, Shape * Luma);
+		}
+	}
+
+	return saturate(Result);
+}
+
+float TGMB_CellPairHash(float2 CellA, float2 CellB, int InSeed, float Salt)
+{
+	float2 Sum = CellA + CellB;
+	float2 Delta = abs(CellA - CellB);
+	return TGMB_Hash12(Sum * 17.17 + Delta * 31.31 + InSeed * Salt);
+}
+
+float TGMB_CellsDiscIntersection(float2 PlaneUV, float Scale, int InSeed, float Disorder, float DisorderSpeed, float DisorderAnisotropy, float DisorderAnisotropyAngle, float2 PatternSize, float PatternScale, float Angle, float AngleRandom, float Hardness)
+{
+	float CellScale = max(Scale, 1.0);
+	float2 P = PlaneUV * CellScale;
+	float Crispness = saturate(Hardness);
+
+	FTGMB_CellInfo CellInfo = TGMB_FindNearestCell(PlaneUV, Scale, InSeed, Disorder, DisorderSpeed, DisorderAnisotropy, DisorderAnisotropyAngle);
+	float Edge = TGMB_CellEdgeDistance(CellInfo, Scale);
+	float PairHash = TGMB_CellPairHash(CellInfo.Cell, CellInfo.SecondCell, InSeed, 53.53);
+	float2 DeltaCenter = (CellInfo.SecondCenter - CellInfo.Center) * CellScale;
+	float CenterDistance = max(length(DeltaCenter), 0.0001);
+	float2 EdgeTangent = float2(-DeltaCenter.y, DeltaCenter.x) / CenterDistance;
+	float2 Midpoint = (CellInfo.Center + CellInfo.SecondCenter) * 0.5 * CellScale;
+	float AlongEdge = dot(P - Midpoint, EdgeTangent);
+	float EdgeNoise = TGMB_ValueNoise(float2(AlongEdge * 2.0 + PairHash * 19.19, PairHash * 7.13));
+	float EdgeVariation = lerp(PairHash, EdgeNoise, 0.35);
+	float PatternExtent = saturate(max(PatternSize.x, PatternSize.y) * max(PatternScale, 0.001));
+	float RandomAngle = Angle + (PairHash - 0.5) * AngleRandom;
+	float2 AngleAxis = float2(cos(TGMB_TurnsToRadians(RandomAngle)), sin(TGMB_TurnsToRadians(RandomAngle)));
+	float Alignment = abs(dot(EdgeTangent, AngleAxis));
+	float Width = lerp(0.07, 0.026, Crispness) * lerp(0.75, 1.2, PatternExtent) * lerp(0.8, 1.2, EdgeVariation);
+	float Feather = lerp(0.17, 0.028, Crispness) * lerp(1.15, 0.85, Alignment) * lerp(1.2, 0.85, EdgeVariation);
+	float Wall = 1.0 - smoothstep(Width, Width + Feather, Edge);
+	return saturate(Wall);
 }
 
 void TGMB_Sobel(Texture2D Tex, float2 UV, float2 Texel, out float EdgeX, out float EdgeY)

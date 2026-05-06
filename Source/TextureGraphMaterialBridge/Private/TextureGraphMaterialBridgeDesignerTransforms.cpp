@@ -16,6 +16,10 @@ IMPLEMENT_GLOBAL_SHADER(FSH_TGMBMultiDirectionalWarp, "/Plugin/TextureGraphMater
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBNonUniformDirectionalWarp, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBNonUniformDirectionalWarp", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBDirectionalDistance, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBDirectionalDistance", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBShapeSplatter, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBShapeSplatter", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBCells1, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBCells1", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBCells2, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBCells2", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBCells3, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBCells3", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBCells4, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBCells4", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBClouds2, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBClouds2", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBBnWSpots, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBBnWSpots", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBGrungeDirt, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBGrungeDirt", SF_Pixel);
@@ -39,6 +43,7 @@ namespace UE::TextureGraphMaterialBridge
 	namespace
 	{
 		constexpr int32 DefaultTextureSize = 1024;
+		constexpr int32 CellsRenderVersion = 9;
 
 		BufferDescriptor BuildOutputDesc(BufferDescriptor DesiredDesc, TiledBlobPtr Reference = nullptr, int32 DefaultItemsPerPoint = 4)
 		{
@@ -227,6 +232,111 @@ namespace UE::TextureGraphMaterialBridge
 			->AddArg(ARG_FLOAT(Threshold, "Threshold"))
 			;
 		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB ShapeSplatter"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateCells1(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, int32 Scale, float Disorder, float DisorderSpeed, float DisorderAnisotropy, float DisorderAnisotropyAngle, int32 PatternType, float PatternSizeX, float PatternSizeY, float PatternScale, float LuminanceRandom, float Angle, float AngleRandom, float OffsetX, float OffsetY, bool bNonSquareExpansion, int32 Seed) {
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, nullptr);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBCells1>(Cycle, TargetId, TEXT("TGMB_Cells1"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_FLOAT(static_cast<float>(FMath::Max(Scale, 1)), "Scale"))
+			->AddArg(ARG_FLOAT(Disorder, "Disorder"))
+			->AddArg(ARG_FLOAT(DisorderSpeed, "DisorderSpeed"))
+			->AddArg(ARG_FLOAT(DisorderAnisotropy, "DisorderAnisotropy"))
+			->AddArg(ARG_FLOAT(DisorderAnisotropyAngle, "DisorderAnisotropyAngle"))
+			->AddArg(ARG_INT(FMath::Clamp(PatternType, 0, 3), "PatternType"))
+			->AddArg(ARG_FLOAT(PatternSizeX, "PatternSizeX"))
+			->AddArg(ARG_FLOAT(PatternSizeY, "PatternSizeY"))
+			->AddArg(ARG_FLOAT(PatternScale, "PatternScale"))
+			->AddArg(ARG_FLOAT(LuminanceRandom, "LuminanceRandom"))
+			->AddArg(ARG_FLOAT(Angle, "Angle"))
+			->AddArg(ARG_FLOAT(AngleRandom, "AngleRandom"))
+			->AddArg(ARG_FLOAT(OffsetX, "OffsetX"))
+			->AddArg(ARG_FLOAT(OffsetY, "OffsetY"))
+			->AddArg(ARG_FLOAT(bNonSquareExpansion ? 1.0f : 0.0f, "NonSquareExpansion"))
+			->AddArg(ARG_INT(Seed, "Seed"))
+			->AddArg(WithUnbounded(ARG_INT(CellsRenderVersion, "CellsRenderVersion")))
+			->AddArg(std::make_shared<JobArg_ForceTiling>())
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB Cells1"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateCells2(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, int32 Scale, float EdgeWidth, bool bInvert, float Disorder, float DisorderSpeed, float OffsetX, float OffsetY, bool bNonSquareExpansion, int32 Seed) {
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, nullptr);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBCells2>(Cycle, TargetId, TEXT("TGMB_Cells2"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_FLOAT(static_cast<float>(FMath::Max(Scale, 1)), "Scale"))
+			->AddArg(ARG_FLOAT(EdgeWidth, "EdgeWidth"))
+			->AddArg(ARG_FLOAT(bInvert ? 1.0f : 0.0f, "Invert"))
+			->AddArg(ARG_FLOAT(Disorder, "Disorder"))
+			->AddArg(ARG_FLOAT(DisorderSpeed, "DisorderSpeed"))
+			->AddArg(ARG_FLOAT(OffsetX, "OffsetX"))
+			->AddArg(ARG_FLOAT(OffsetY, "OffsetY"))
+			->AddArg(ARG_FLOAT(bNonSquareExpansion ? 1.0f : 0.0f, "NonSquareExpansion"))
+			->AddArg(ARG_INT(Seed, "Seed"))
+			->AddArg(WithUnbounded(ARG_INT(CellsRenderVersion, "CellsRenderVersion")))
+			->AddArg(std::make_shared<JobArg_ForceTiling>())
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB Cells2"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateCells3(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, int32 Scale, float Hardness, bool bInvert, float Disorder, float DisorderSpeed, float DisorderAnisotropy, float DisorderAnisotropyAngle, float PatternSizeX, float PatternSizeY, float PatternScale, float Angle, float AngleRandom, float OffsetX, float OffsetY, bool bNonSquareExpansion, int32 Seed) {
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, nullptr);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBCells3>(Cycle, TargetId, TEXT("TGMB_Cells3"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_FLOAT(static_cast<float>(FMath::Max(Scale, 1)), "Scale"))
+			->AddArg(ARG_FLOAT(Hardness, "Hardness"))
+			->AddArg(ARG_FLOAT(bInvert ? 1.0f : 0.0f, "Invert"))
+			->AddArg(ARG_FLOAT(Disorder, "Disorder"))
+			->AddArg(ARG_FLOAT(DisorderSpeed, "DisorderSpeed"))
+			->AddArg(ARG_FLOAT(DisorderAnisotropy, "DisorderAnisotropy"))
+			->AddArg(ARG_FLOAT(DisorderAnisotropyAngle, "DisorderAnisotropyAngle"))
+			->AddArg(ARG_FLOAT(PatternSizeX, "PatternSizeX"))
+			->AddArg(ARG_FLOAT(PatternSizeY, "PatternSizeY"))
+			->AddArg(ARG_FLOAT(PatternScale, "PatternScale"))
+			->AddArg(ARG_FLOAT(Angle, "Angle"))
+			->AddArg(ARG_FLOAT(AngleRandom, "AngleRandom"))
+			->AddArg(ARG_FLOAT(OffsetX, "OffsetX"))
+			->AddArg(ARG_FLOAT(OffsetY, "OffsetY"))
+			->AddArg(ARG_FLOAT(bNonSquareExpansion ? 1.0f : 0.0f, "NonSquareExpansion"))
+			->AddArg(ARG_INT(Seed, "Seed"))
+			->AddArg(WithUnbounded(ARG_INT(CellsRenderVersion, "CellsRenderVersion")))
+			->AddArg(std::make_shared<JobArg_ForceTiling>())
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB Cells3"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateCells4(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 Scale, float Disorder, float DisorderSpeed, int32 ColorSource, int32 PseudorandomSeed, float OffsetX, float OffsetY, bool bNonSquareExpansion, int32 Seed) {
+		const bool bHasSource = Source != nullptr;
+		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, bHasSource ? Source : TextureHelper::GetBlack());
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, bHasSource ? CombinedSource : nullptr);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBCells4>(Cycle, TargetId, TEXT("TGMB_Cells4"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
+			->AddArg(ARG_FLOAT(static_cast<float>(FMath::Max(Scale, 1)), "Scale"))
+			->AddArg(ARG_FLOAT(Disorder, "Disorder"))
+			->AddArg(ARG_FLOAT(DisorderSpeed, "DisorderSpeed"))
+			->AddArg(ARG_INT(FMath::Clamp(ColorSource, 0, 2), "ColorSource"))
+			->AddArg(ARG_INT(PseudorandomSeed, "PseudorandomSeed"))
+			->AddArg(ARG_FLOAT(OffsetX, "OffsetX"))
+			->AddArg(ARG_FLOAT(OffsetY, "OffsetY"))
+			->AddArg(ARG_FLOAT(bNonSquareExpansion ? 1.0f : 0.0f, "NonSquareExpansion"))
+			->AddArg(ARG_INT(Seed, "Seed"))
+			->AddArg(WithUnbounded(ARG_INT(CellsRenderVersion, "CellsRenderVersion")))
+			->AddArg(std::make_shared<JobArg_ForceTiling>())
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB Cells4"), &Desc);
 		Cycle->AddJob(TargetId, std::move(RenderJob));
 		return Result;
 	}

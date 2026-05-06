@@ -77,13 +77,30 @@ enum class ETGMBBevelMode : uint8
 	Both = 2 UMETA(DisplayName = "Both")
 };
 
+UENUM(BlueprintType)
+enum class ETGMBCellsPattern : uint8
+{
+	Disc = 0 UMETA(DisplayName = "Disc"),
+	Square = 1 UMETA(DisplayName = "Square"),
+	Diamond = 2 UMETA(DisplayName = "Diamond"),
+	Bar = 3 UMETA(DisplayName = "Bar")
+};
+
+UENUM(BlueprintType)
+enum class ETGMBCells4ColorSource : uint8
+{
+	Random = 0 UMETA(DisplayName = "Random"),
+	Pseudorandom = 1 UMETA(DisplayName = "Pseudorandom"),
+	ImageInput = 2 UMETA(DisplayName = "Image Input")
+};
+
 UCLASS(MinimalAPI)
 class UTG_Expression_TGMB_FloodFillToRandomGrayscale : public UTG_Expression {
 	GENERATED_BODY()
 public:
 	TG_DECLARE_EXPRESSION(TG_Category::Filter);
 	virtual void Evaluate(FTG_EvaluationContext* InContext) override;
-	virtual FTG_Name GetDefaultName() const override { return TEXT("Flood Fill  to RandomGrayscale"); }
+	virtual FTG_Name GetDefaultName() const override { return TEXT("Flood Fill to Random Grayscale"); }
 	virtual FText GetTooltipText() const override { return FText::FromString(TEXT("Converts flood fill data to random grayscale.")); }
 	UPROPERTY(meta = (TGType = "TG_Input", PinDisplayName = "Flood Fill Data")) FTG_Texture Source;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) int32 Seed = 0;
@@ -96,7 +113,7 @@ class UTG_Expression_TGMB_FloodFillToRandomColor : public UTG_Expression {
 public:
 	TG_DECLARE_EXPRESSION(TG_Category::Filter);
 	virtual void Evaluate(FTG_EvaluationContext* InContext) override;
-	virtual FTG_Name GetDefaultName() const override { return TEXT("Flood Fill  to RandomColor"); }
+	virtual FTG_Name GetDefaultName() const override { return TEXT("Flood Fill to Random Color"); }
 	virtual FText GetTooltipText() const override { return FText::FromString(TEXT("Converts flood fill data to random color.")); }
 	UPROPERTY(meta = (TGType = "TG_Input", PinDisplayName = "Flood Fill Data")) FTG_Texture Source;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) int32 Seed = 0;
@@ -109,7 +126,7 @@ class UTG_Expression_TGMB_FloodFillToGradient : public UTG_Expression {
 public:
 	TG_DECLARE_EXPRESSION(TG_Category::Filter);
 	virtual void Evaluate(FTG_EvaluationContext* InContext) override;
-	virtual FTG_Name GetDefaultName() const override { return TEXT("Flood Fill  to Gradient"); }
+	virtual FTG_Name GetDefaultName() const override { return TEXT("Flood Fill to Gradient"); }
 	virtual FText GetTooltipText() const override { return FText::FromString(TEXT("Converts flood fill data to gradient.")); }
 	UPROPERTY(meta = (TGType = "TG_Input", PinDisplayName = "Flood Fill Data")) FTG_Texture Source;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) float GradientAngle = 0.0f;
@@ -124,7 +141,7 @@ class UTG_Expression_TGMB_FloodFillToPosition : public UTG_Expression {
 public:
 	TG_DECLARE_EXPRESSION(TG_Category::Filter);
 	virtual void Evaluate(FTG_EvaluationContext* InContext) override;
-	virtual FTG_Name GetDefaultName() const override { return TEXT("Flood Fill  to Position"); }
+	virtual FTG_Name GetDefaultName() const override { return TEXT("Flood Fill to Position"); }
 	virtual FText GetTooltipText() const override { return FText::FromString(TEXT("Converts flood fill data to position.")); }
 	UPROPERTY(meta = (TGType = "TG_Input", PinDisplayName = "Flood Fill Data")) FTG_Texture Source;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "")) FTG_Texture Output;
@@ -187,6 +204,95 @@ public:
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) float GradientAngle = 0.0f;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) int32 Samples = 32;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) float Threshold = 0.5f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "")) FTG_Texture Output;
+};
+
+UCLASS(MinimalAPI)
+class UTG_Expression_TGMB_Cells1 : public UTG_Expression {
+	GENERATED_BODY()
+public:
+	TG_DECLARE_EXPRESSION(TG_Category::Procedural);
+	virtual void Evaluate(FTG_EvaluationContext* InContext) override;
+	virtual FTG_Name GetDefaultName() const override { return TEXT("Cells 1"); }
+	virtual FText GetTooltipText() const override { return FText::FromString(TEXT("Scatters selected cell patterns with max blending.")); }
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "1", ClampMin = "1", UIMax = "256", ClampMax = "256")) int32 Scale = 16;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float Disorder = 0.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "8", ClampMax = "8")) float DisorderSpeed = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float DisorderAnisotropy = 0.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) float DisorderAnisotropyAngle = 0.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) ETGMBCellsPattern Pattern = ETGMBCellsPattern::Disc;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) FVector2f PatternSize = FVector2f(0.8f, 0.8f);
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "8", ClampMax = "8")) float PatternScale = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float LuminanceRandom = 0.35f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) float Angle = 0.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float AngleRandom = 0.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) FVector2f TileOffset = FVector2f::ZeroVector;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) bool bNonSquareExpansion = true;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) int32 Seed = 0;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "")) FTG_Texture Output;
+};
+
+UCLASS(MinimalAPI)
+class UTG_Expression_TGMB_Cells2 : public UTG_Expression {
+	GENERATED_BODY()
+public:
+	TG_DECLARE_EXPRESSION(TG_Category::Procedural);
+	virtual void Evaluate(FTG_EvaluationContext* InContext) override;
+	virtual FTG_Name GetDefaultName() const override { return TEXT("Cells 2"); }
+	virtual FText GetTooltipText() const override { return FText::FromString(TEXT("Generates a binary cell mask with adjustable wall thickness.")); }
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "1", ClampMin = "1", UIMax = "256", ClampMax = "256")) int32 Scale = 16;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float EdgeWidth = 0.05f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) bool bInvert = false;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float Disorder = 0.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "8", ClampMax = "8")) float DisorderSpeed = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) FVector2f TileOffset = FVector2f::ZeroVector;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) bool bNonSquareExpansion = true;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) int32 Seed = 0;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "")) FTG_Texture Output;
+};
+
+UCLASS(MinimalAPI)
+class UTG_Expression_TGMB_Cells3 : public UTG_Expression {
+	GENERATED_BODY()
+public:
+	TG_DECLARE_EXPRESSION(TG_Category::Procedural);
+	virtual void Evaluate(FTG_EvaluationContext* InContext) override;
+	virtual FTG_Name GetDefaultName() const override { return TEXT("Cells 3"); }
+	virtual FText GetTooltipText() const override { return FText::FromString(TEXT("Generates soft uneven cell walls from intersecting discs.")); }
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "1", ClampMin = "1", UIMax = "256", ClampMax = "256")) int32 Scale = 16;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float Hardness = 0.75f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) bool bInvert = false;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float Disorder = 0.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "8", ClampMax = "8")) float DisorderSpeed = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float DisorderAnisotropy = 0.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) float DisorderAnisotropyAngle = 0.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) FVector2f PatternSize = FVector2f(0.9f, 0.9f);
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "8", ClampMax = "8")) float PatternScale = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) float Angle = 0.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float AngleRandom = 0.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) FVector2f TileOffset = FVector2f::ZeroVector;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) bool bNonSquareExpansion = true;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) int32 Seed = 0;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "")) FTG_Texture Output;
+};
+
+UCLASS(MinimalAPI)
+class UTG_Expression_TGMB_Cells4 : public UTG_Expression {
+	GENERATED_BODY()
+public:
+	TG_DECLARE_EXPRESSION(TG_Category::Procedural);
+	virtual void Evaluate(FTG_EvaluationContext* InContext) override;
+	virtual FTG_Name GetDefaultName() const override { return TEXT("Cells 4"); }
+	virtual FText GetTooltipText() const override { return FText::FromString(TEXT("Assigns a flat grayscale value to each generated cell.")); }
+	UPROPERTY(meta = (TGType = "TG_Input", PinDisplayName = "Input Grayscale")) FTG_Texture Input;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "1", ClampMin = "1", UIMax = "256", ClampMax = "256")) int32 Scale = 16;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float Disorder = 0.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "8", ClampMax = "8")) float DisorderSpeed = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) ETGMBCells4ColorSource ColorSource = ETGMBCells4ColorSource::Random;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) int32 PseudorandomSeed = 0;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) FVector2f TileOffset = FVector2f::ZeroVector;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) bool bNonSquareExpansion = true;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) int32 Seed = 0;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "")) FTG_Texture Output;
 };
 
@@ -348,11 +454,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "2"))
 	float LuminanceJitter = 0.0f;
 
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "100000", ClampMax = "2147483647"))
 	int32 Seed = 0;
 
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "Flood Fill Data"))
-	FTG_Texture FloodFillData;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = ""))
 	FTG_Texture Output;
 };
@@ -404,11 +508,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "6.28318", ClampMax = "6.28318"))
 	float RotationJitter = 0.0f;
 
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "100000", ClampMax = "2147483647"))
 	int32 Seed = 0;
 
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "Flood Fill Data"))
-	FTG_Texture FloodFillData;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = ""))
 	FTG_Texture Output;
 };
@@ -453,8 +555,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) float Position7 = 1.0f;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) FLinearColor Color7 = FLinearColor::White;
 
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "Flood Fill Data"))
-	FTG_Texture FloodFillData;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = ""))
 	FTG_Texture Output;
 };
@@ -488,8 +588,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting"))
 	bool bInvertGreen = false;
 
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "Flood Fill Data"))
-	FTG_Texture FloodFillData;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = ""))
 	FTG_Texture Output;
 };
@@ -520,7 +618,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "-3.14159", ClampMin = "-6.28318", UIMax = "3.14159", ClampMax = "6.28318"))
 	float GradientAngle = 0.0f;
 
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "100000", ClampMax = "2147483647"))
 	int32 Seed = 0;
 
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "Flood Fill Data"))
@@ -558,8 +656,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting"))
 	bool bInvertSlope = false;
 
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "Flood Fill Data"))
-	FTG_Texture FloodFillData;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = ""))
 	FTG_Texture Output;
 };
@@ -590,8 +686,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1"))
 	float Threshold = 0.5f;
 
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "Flood Fill Data"))
-	FTG_Texture FloodFillData;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = ""))
 	FTG_Texture Output;
 };
@@ -628,8 +722,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting"))
 	bool bInvert = false;
 
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "Flood Fill Data"))
-	FTG_Texture FloodFillData;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = ""))
 	FTG_Texture Output;
 };

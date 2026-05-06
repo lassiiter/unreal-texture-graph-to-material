@@ -29,6 +29,8 @@ int BlendMode;
 int Connectivity;
 int Samples;
 int Mode;
+int ColorSource;
+int PseudorandomSeed;
 
 float CountX;
 float CountY;
@@ -56,6 +58,19 @@ float Contrast;
 float Invert;
 float Smoothing;
 float NormalStrength;
+float EdgeWidth;
+float Hardness;
+float Disorder;
+float DisorderSpeed;
+float DisorderAnisotropy;
+float DisorderAnisotropyAngle;
+float PatternSizeX;
+float PatternSizeY;
+float PatternScale;
+float LuminanceRandom;
+float Angle;
+float AngleRandom;
+float NonSquareExpansion;
 
 float Position0;
 float Position1;
@@ -249,7 +264,7 @@ float4 FSH_TGMBFloodFill(float2 UV : TEXCOORD0) : SV_Target0
 	}
 	if (OutputMode == 2)
 	{
-		return float4(LayerUV * Mask, Id * Mask, 1.0);
+		return float4(frac(LayerUV * CellScale) * Mask, Id * Mask, 1.0);
 	}
 	if (OutputMode == 3)
 	{
@@ -410,42 +425,47 @@ float4 FSH_TGMBMultiMaterialBlend(float2 UV : TEXCOORD0) : SV_Target0
 
 float4 FSH_TGMBFloodFillToRandomGrayscale(float2 UV : TEXCOORD0) : SV_Target0
 {
-	float4 Data = SourceTexture.Sample(SamplerStates_Linear_Wrap, UV);
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float4 Data = SourceTexture.Sample(SamplerStates_Linear_Wrap, LayerUV);
 	if (Data.x == 0.0 && Data.y == 0.0 && Data.z == 0.0) return 0.0;
-	float R = TGMB_Hash12(Data.z + Seed);
+	float R = TGMB_Hash11(Data.z + Seed);
 	return float4(R.xxx, 1.0);
 }
 
 float4 FSH_TGMBFloodFillToRandomColor(float2 UV : TEXCOORD0) : SV_Target0
 {
-	float4 Data = SourceTexture.Sample(SamplerStates_Linear_Wrap, UV);
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float4 Data = SourceTexture.Sample(SamplerStates_Linear_Wrap, LayerUV);
 	if (Data.x == 0.0 && Data.y == 0.0 && Data.z == 0.0) return 0.0;
-	float3 R = float3(TGMB_Hash12(Data.z + Seed), TGMB_Hash12(Data.z + Seed + 17.0), TGMB_Hash12(Data.z + Seed + 31.0));
+	float3 R = float3(TGMB_Hash11(Data.z + Seed), TGMB_Hash11(Data.z + Seed + 17.0), TGMB_Hash11(Data.z + Seed + 31.0));
 	return float4(R, 1.0);
 }
 
 float4 FSH_TGMBFloodFillToGradient(float2 UV : TEXCOORD0) : SV_Target0
 {
-	float4 Data = SourceTexture.Sample(SamplerStates_Linear_Wrap, UV);
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float4 Data = SourceTexture.Sample(SamplerStates_Linear_Wrap, LayerUV);
 	if (Data.x == 0.0 && Data.y == 0.0 && Data.z == 0.0) return 0.0;
-	float Angle = GradientAngle + (TGMB_Hash12(Data.z + Seed * 13.0) - 0.5) * RotationJitter;
+	float Angle = GradientAngle + (TGMB_Hash11(Data.z + Seed * 13.0) - 0.5) * RotationJitter;
 	float2 Direction = float2(cos(Angle), sin(Angle));
-	float G = saturate(dot(frac(Data.xy * 64.0), Direction) * 0.5 + 0.5); 
+	float G = saturate(dot(Data.xy - 0.5, Direction) + 0.5);
 	return float4(G.xxx, 1.0);
 }
 
 float4 FSH_TGMBFloodFillToPosition(float2 UV : TEXCOORD0) : SV_Target0
 {
-	float4 Data = SourceTexture.Sample(SamplerStates_Linear_Wrap, UV);
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float4 Data = SourceTexture.Sample(SamplerStates_Linear_Wrap, LayerUV);
 	if (Data.x == 0.0 && Data.y == 0.0 && Data.z == 0.0) return 0.0;
 	return float4(Data.xy, 0.0, 1.0);
 }
 
 float4 FSH_TGMBFloodFillMapper(float2 UV : TEXCOORD0) : SV_Target0
 {
-	float4 Data = SourceTexture.Sample(SamplerStates_Linear_Wrap, UV);
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float4 Data = SourceTexture.Sample(SamplerStates_Linear_Wrap, LayerUV);
 	if (Data.x == 0.0 && Data.y == 0.0 && Data.z == 0.0) return 0.0;
-	float2 MappedUV = frac(Data.xy * 64.0);
+	float2 MappedUV = saturate(Data.xy);
 	return MaskTexture.Sample(SamplerStates_Linear_Wrap, MappedUV);
 }
 
@@ -469,6 +489,11 @@ float4 FSH_TGMBNonUniformDirectionalWarp(float2 UV : TEXCOORD0) : SV_Target0
 
 float4 FSH_TGMBDirectionalDistance(float2 UV : TEXCOORD0) : SV_Target0
 {
+	if (Distance <= 0.0 || Samples <= 0)
+	{
+		return 0.0;
+	}
+
 	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
 	float2 Direction = float2(cos(GradientAngle), sin(GradientAngle));
 	int Count = clamp(Samples, 1, 128);
@@ -490,6 +515,11 @@ float4 FSH_TGMBDirectionalDistance(float2 UV : TEXCOORD0) : SV_Target0
 
 float4 FSH_TGMBShapeSplatter(float2 UV : TEXCOORD0) : SV_Target0
 {
+	if (CountX <= 0.0 || CountY <= 0.0 || Scale <= 0.0)
+	{
+		return 0.0;
+	}
+
 	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
 	float2 Counts = max(float2(CountX, CountY), 1.0);
 	float2 GridUV = LayerUV * Counts;
@@ -502,6 +532,81 @@ float4 FSH_TGMBShapeSplatter(float2 UV : TEXCOORD0) : SV_Target0
 	float2 SampleUV = Local / TileScale + 0.5;
 	float InCell = min(step(0.0, SampleUV.x) * step(SampleUV.x, 1.0), step(0.0, SampleUV.y) * step(SampleUV.y, 1.0));
 	return SourceTexture.Sample(SamplerStates_Linear_Wrap, SampleUV) * InCell;
+}
+
+float4 FSH_TGMBCells1(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float2 PlaneUV = TGMB_CellPlaneUV(LayerUV, TileInfo_layerResolution(), float2(OffsetX, OffsetY), NonSquareExpansion);
+	float Value = TGMB_CellsPatternLayer(
+		PlaneUV,
+		max(Scale, 1.0),
+		PatternType,
+		Seed,
+		Disorder,
+		DisorderSpeed,
+		DisorderAnisotropy,
+		DisorderAnisotropyAngle,
+		float2(PatternSizeX, PatternSizeY),
+		PatternScale,
+		LuminanceRandom,
+		Angle,
+		AngleRandom);
+	return float4(Value.xxx, 1.0);
+}
+
+float4 FSH_TGMBCells2(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float2 PlaneUV = TGMB_CellPlaneUV(LayerUV, TileInfo_layerResolution(), float2(OffsetX, OffsetY), NonSquareExpansion);
+	FTGMB_CellInfo CellInfo = TGMB_FindNearestCell(PlaneUV, max(Scale, 1.0), Seed, Disorder, DisorderSpeed, 0.0, 0.0);
+	float Edge = TGMB_CellEdgeDistance(CellInfo, max(Scale, 1.0));
+	float Width = max(saturate(EdgeWidth) * 0.5, 0.0001);
+	float Value = step(Width, Edge);
+	Value = lerp(Value, 1.0 - Value, saturate(Invert));
+	return float4(Value.xxx, 1.0);
+}
+
+float4 FSH_TGMBCells3(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float2 PlaneUV = TGMB_CellPlaneUV(LayerUV, TileInfo_layerResolution(), float2(OffsetX, OffsetY), NonSquareExpansion);
+	float Value = TGMB_CellsDiscIntersection(
+		PlaneUV,
+		max(Scale, 1.0),
+		Seed,
+		Disorder,
+		DisorderSpeed,
+		DisorderAnisotropy,
+		DisorderAnisotropyAngle,
+		float2(PatternSizeX, PatternSizeY),
+		PatternScale,
+		Angle,
+		AngleRandom,
+		Hardness);
+	Value = lerp(Value, 1.0 - Value, saturate(Invert));
+	return float4(Value.xxx, 1.0);
+}
+
+float4 FSH_TGMBCells4(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float2 PlaneUV = TGMB_CellPlaneUV(LayerUV, TileInfo_layerResolution(), float2(OffsetX, OffsetY), NonSquareExpansion);
+	FTGMB_CellInfo CellInfo = TGMB_FindNearestCell(PlaneUV, max(Scale, 1.0), Seed, Disorder, DisorderSpeed, 0.0, 0.0);
+	float Value = TGMB_Hash12(CellInfo.Cell + Seed);
+
+	if (ColorSource == 1)
+	{
+		Value = TGMB_Hash12(CellInfo.Cell + PseudorandomSeed);
+	}
+	else if (ColorSource == 2)
+	{
+		Value = TGMB_Luma(SourceTexture.Sample(SamplerStates_Linear_Wrap, CellInfo.Center));
+		return float4(saturate(Value).xxx, 1.0);
+	}
+
+	Value = lerp(0.12, 0.92, Value);
+	return float4(saturate(Value).xxx, 1.0);
 }
 
 float4 FSH_TGMBClouds2(float2 UV : TEXCOORD0) : SV_Target0
