@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add TGMB Node"
+  short_description: "Add custom Texture Graph bridge nodes"
+  default_prompt: "Use $add-tgmb-node to add a new custom Texture Graph node from this description."
