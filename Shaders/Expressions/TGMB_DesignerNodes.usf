@@ -64,6 +64,7 @@ float Disorder;
 float DisorderSpeed;
 float DisorderAnisotropy;
 float DisorderAnisotropyAngle;
+float Quality;
 float PatternSizeX;
 float PatternSizeY;
 float PatternScale;
@@ -605,7 +606,6 @@ float4 FSH_TGMBCells4(float2 UV : TEXCOORD0) : SV_Target0
 		return float4(saturate(Value).xxx, 1.0);
 	}
 
-	Value = lerp(0.12, 0.92, Value);
 	return float4(saturate(Value).xxx, 1.0);
 }
 
@@ -661,6 +661,44 @@ float4 FSH_TGMBLuminanceHighpass(float2 UV : TEXCOORD0) : SV_Target0
 	float4 Color = FSH_TGMBHighpass(UV);
 	float Luma = TGMB_Luma(Color);
 	return float4(Luma.xxx, 1.0);
+}
+
+float4 FSH_TGMBBlurHQ(float2 UV : TEXCOORD0) : SV_Target0
+{
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float2 Resolution = TileInfo_layerResolution();
+	float2 Texel = rcp(max(Resolution, 1.0));
+
+	float RadiusPx = max(Intensity, 0.0);
+	if (RadiusPx <= 0.0001)
+	{
+		return SourceTexture.Sample(SamplerStates_Linear_Wrap, LayerUV);
+	}
+
+	int HalfKernel = clamp((int)floor(lerp(3.0, 8.0, saturate(Quality)) + 0.5), 1, 8);
+	float StepPx = RadiusPx / max((float)HalfKernel, 1.0);
+	float Sigma = max(RadiusPx * 0.5, 0.001);
+	float InvTwoSigmaSq = 0.5 / (Sigma * Sigma);
+
+	float4 Accum = 0.0;
+	float WeightTotal = 0.0;
+	for (int y = -8; y <= 8; ++y)
+	{
+		for (int x = -8; x <= 8; ++x)
+		{
+			int Ax = max(x, -x);
+			int Ay = max(y, -y);
+			if (Ax <= HalfKernel && Ay <= HalfKernel)
+			{
+				float2 OffsetPx = float2(x, y) * StepPx;
+				float Weight = exp(-dot(OffsetPx, OffsetPx) * InvTwoSigmaSq);
+				Accum += SourceTexture.Sample(SamplerStates_Linear_Wrap, LayerUV + OffsetPx * Texel) * Weight;
+				WeightTotal += Weight;
+			}
+		}
+	}
+
+	return Accum / max(WeightTotal, 0.0001);
 }
 
 float4 FSH_TGMBCurvatureSobel(float2 UV : TEXCOORD0) : SV_Target0

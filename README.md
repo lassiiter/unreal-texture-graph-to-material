@@ -67,6 +67,7 @@ The plugin adds the following GPU-backed, Designer-style nodes:
 - Directional Distance
 
 #### Filters & Blur
+- Blur HQ
 - Slope Blur
 - Gradient Map
 - Highpass

@@ -216,8 +216,8 @@ public:
 	virtual FTG_Name GetDefaultName() const override { return TEXT("Cells 1"); }
 	virtual FText GetTooltipText() const override { return FText::FromString(TEXT("Scatters selected cell patterns with max blending.")); }
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "1", ClampMin = "1", UIMax = "256", ClampMax = "256")) int32 Scale = 16;
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float Disorder = 0.0f;
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "8", ClampMax = "8")) float DisorderSpeed = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float Disorder = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "8", ClampMax = "8")) float DisorderSpeed = 8.0f;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float DisorderAnisotropy = 0.0f;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) float DisorderAnisotropyAngle = 0.0f;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) ETGMBCellsPattern Pattern = ETGMBCellsPattern::Disc;
@@ -243,8 +243,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "1", ClampMin = "1", UIMax = "256", ClampMax = "256")) int32 Scale = 16;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float EdgeWidth = 0.05f;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) bool bInvert = false;
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float Disorder = 0.0f;
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "8", ClampMax = "8")) float DisorderSpeed = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float Disorder = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "8", ClampMax = "8")) float DisorderSpeed = 8.0f;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) FVector2f TileOffset = FVector2f::ZeroVector;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) bool bNonSquareExpansion = true;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) int32 Seed = 0;
@@ -262,8 +262,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "1", ClampMin = "1", UIMax = "256", ClampMax = "256")) int32 Scale = 16;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float Hardness = 0.75f;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) bool bInvert = false;
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float Disorder = 0.0f;
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "8", ClampMax = "8")) float DisorderSpeed = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float Disorder = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "8", ClampMax = "8")) float DisorderSpeed = 8.0f;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float DisorderAnisotropy = 0.0f;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) float DisorderAnisotropyAngle = 0.0f;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) FVector2f PatternSize = FVector2f(0.9f, 0.9f);
@@ -286,8 +286,8 @@ public:
 	virtual FText GetTooltipText() const override { return FText::FromString(TEXT("Assigns a flat grayscale value to each generated cell.")); }
 	UPROPERTY(meta = (TGType = "TG_Input", PinDisplayName = "Input Grayscale")) FTG_Texture Input;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "1", ClampMin = "1", UIMax = "256", ClampMax = "256")) int32 Scale = 16;
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float Disorder = 0.0f;
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "8", ClampMax = "8")) float DisorderSpeed = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float Disorder = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "8", ClampMax = "8")) float DisorderSpeed = 8.0f;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) ETGMBCells4ColorSource ColorSource = ETGMBCells4ColorSource::Random;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) int32 PseudorandomSeed = 0;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) FVector2f TileOffset = FVector2f::ZeroVector;
@@ -390,6 +390,30 @@ public:
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) float Radius = 4.0f;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) float Contrast = 1.0f;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "")) FTG_Texture Output;
+};
+
+UCLASS(MinimalAPI)
+class UTG_Expression_TGMB_BlurHQ : public UTG_Expression
+{
+	GENERATED_BODY()
+
+public:
+	TG_DECLARE_EXPRESSION(TG_Category::Filter);
+	virtual void Evaluate(FTG_EvaluationContext* InContext) override;
+	virtual FTG_Name GetDefaultName() const override { return TEXT("Blur HQ"); }
+	virtual FText GetTooltipText() const override { return FText::FromString(TEXT("Applies a high-quality Gaussian blur.")); }
+
+	UPROPERTY(meta = (TGType = "TG_Input", PinDisplayName = "Input"))
+	FTG_Texture Input;
+
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "16", ClampMax = "16"))
+	float Intensity = 1.0f;
+
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1"))
+	float Quality = 0.5f;
+
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = ""))
+	FTG_Texture Output;
 };
 
 UCLASS(MinimalAPI)

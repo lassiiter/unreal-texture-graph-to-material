@@ -194,6 +194,19 @@ void UTG_Expression_TGMB_LuminanceHighpass::Evaluate(FTG_EvaluationContext* InCo
 	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateLuminanceHighpass(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, Radius, Contrast);
 }
 
+void UTG_Expression_TGMB_BlurHQ::Evaluate(FTG_EvaluationContext* InContext)
+{
+	Super::Evaluate(InContext);
+
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateBlurHQ(
+		InContext->Cycle,
+		Output.GetBufferDescriptor(),
+		InContext->TargetId,
+		Input.RasterBlob,
+		Intensity,
+		Quality);
+}
+
 void UTG_Expression_TGMB_CurvatureSobel::Evaluate(FTG_EvaluationContext* InContext) {
 	Super::Evaluate(InContext);
 	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateCurvatureSobel(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, Radius, Intensity);

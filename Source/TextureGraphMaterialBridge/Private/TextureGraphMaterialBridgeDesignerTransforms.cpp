@@ -25,6 +25,7 @@ IMPLEMENT_GLOBAL_SHADER(FSH_TGMBBnWSpots, "/Plugin/TextureGraphMaterialBridge/Ex
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBGrungeDirt, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBGrungeDirt", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBHighpass, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBHighpass", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBLuminanceHighpass, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBLuminanceHighpass", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBBlurHQ, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBBlurHQ", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBCurvatureSobel, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBCurvatureSobel", SF_Pixel);
 
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBTileGenerator, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBTileGenerator", SF_Pixel);
@@ -43,7 +44,7 @@ namespace UE::TextureGraphMaterialBridge
 	namespace
 	{
 		constexpr int32 DefaultTextureSize = 1024;
-		constexpr int32 CellsRenderVersion = 9;
+		constexpr int32 CellsRenderVersion = 10;
 
 		BufferDescriptor BuildOutputDesc(BufferDescriptor DesiredDesc, TiledBlobPtr Reference = nullptr, int32 DefaultItemsPerPoint = 4)
 		{
@@ -421,6 +422,34 @@ namespace UE::TextureGraphMaterialBridge
 			->AddArg(ARG_FLOAT(Contrast, "Contrast"))
 			;
 		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB LuminanceHighpass"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateBlurHQ(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Intensity, float Quality)
+	{
+		if (!Source)
+		{
+			return TextureHelper::GetBlack();
+		}
+
+		if (Intensity <= KINDA_SMALL_NUMBER)
+		{
+			return Source;
+		}
+
+		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source);
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, Source);
+		FTileInfo TileInfo;
+
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBBlurHQ>(Cycle, TargetId, TEXT("TGMB_BlurHQ"));
+		RenderJob
+			->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
+			->AddArg(ARG_FLOAT(FMath::Clamp(Intensity, 0.0f, 16.0f), "Intensity"))
+			->AddArg(ARG_FLOAT(FMath::Clamp(Quality, 0.0f, 1.0f), "Quality"));
+
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB Blur HQ"), &Desc);
 		Cycle->AddJob(TargetId, std::move(RenderJob));
 		return Result;
 	}
