@@ -21,67 +21,35 @@ The plugin adds UE-native, Designer-style Texture Graph nodes for common materia
 
 Do not look for the following nodes in this plugin; Unreal Engine's Texture Graph natively provides their equivalents:
 
-- **Blend** (Native: `Blend` / `Math` nodes)
-- **Levels** (Native: `Levels`)
-- **Transform** (Native: `Transform`)
-- **Uniform Color** (Native: `Color` / `Vector` constants)
-- **Output** (Native: `Output`)
-- **Histogram Scan / Range** (Native: `Histogram`)
-- **Invert** (Native: `Invert` / `OneMinus`)
-- **Edge Detect** (Native: `Edge Detect`)
-- **Shape** (Native: `Shape`)
-- **Perlin Noise** (Native: `Noise` nodes)
-- **Warp / Directional Warp** (Native: `Warp`)
-- **Blur** (Native: `Blur`)
-- **Normal From Height** (Native: `Normal From Height`)
+| Designer-style node | Native Texture Graph equivalent |
+| --- | --- |
+| Blend | `Blend` / `Math` nodes |
+| Levels | `Levels` |
+| Transform | `Transform` |
+| Uniform Color | `Color` / `Vector` constants |
+| Output | `Output` |
+| Histogram Scan / Range | `Histogram` |
+| Invert | `Invert` / `OneMinus` |
+| Edge Detect | `Edge Detect` |
+| Shape | `Shape` |
+| Perlin Noise | `Noise` nodes |
+| Warp / Directional Warp | `Warp` |
+| Blur | `Blur` |
+| Normal From Height | `Normal From Height` |
 
 ### Plugin Nodes
 
 The plugin adds the following GPU-backed, Designer-style nodes:
 
-#### Base Pattern & Scattering
-- Tile Generator
-- Tile Sampler
-- Shape Splatter
-
-#### Flood Fill & Converters
-- Flood Fill
-- Flood Fill to Random Grayscale
-- Flood Fill to Random Color
-- Flood Fill to Gradient
-- Flood Fill to Position
-- Flood Fill Mapper
-
-#### Noise & Grunge
-- Cells 1
-- Cells 2
-- Cells 3
-- Cells 4
-- Clouds 2
-- BnW Spots
-- Grunge Dirt
-
-#### Warping & Distance
-- Multi Directional Warp
-- Non-Uniform Directional Warp
-- Directional Distance
-
-#### Filters & Blur
-- Blur HQ
-- Slope Blur
-- Gradient Map
-- Highpass
-- Luminance Highpass
-
-#### Normal & Surface Details
-- Bevel
-- Ambient Occlusion HBAO
-- Curvature Smooth
-- Curvature Sobel
-- Normal Combine
-
-#### Blending
-- Multi-Material Blend
+| Category | Nodes |
+| --- | --- |
+| Base Pattern & Scattering | Tile Generator, Tile Sampler, Shape Splatter |
+| Flood Fill & Converters | Flood Fill, Flood Fill to Random Grayscale, Flood Fill to Random Color, Flood Fill to Gradient, Flood Fill to Position, Flood Fill Mapper |
+| Noise & Grunge | Cells 1, Cells 2, Cells 3, Cells 4, Clouds 2, BnW Spots, Grunge Dirt |
+| Warping & Distance | Multi Directional Warp, Non-Uniform Directional Warp, Directional Distance |
+| Filters & Blur | Blur HQ, Slope Blur, Gradient Map, Highpass, Luminance Highpass |
+| Normal & Surface Details | Bevel, Ambient Occlusion HBAO, Curvature Smooth, Curvature Sobel, Normal Combine |
+| Blending | Multi-Material Blend |
 
 ### Out of Scope
 

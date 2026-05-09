@@ -684,7 +684,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "0.25", ClampMax = "2"))
 	float Intensity = 0.025f;
 
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "1", ClampMin = "1", UIMax = "32", ClampMax = "64"))
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "1", ClampMin = "1", UIMax = "128", ClampMax = "256"))
 	int32 Samples = 16;
 
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting"))

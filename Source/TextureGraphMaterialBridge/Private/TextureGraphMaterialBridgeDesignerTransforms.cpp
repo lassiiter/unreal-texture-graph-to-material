@@ -686,7 +686,7 @@ TiledBlobPtr FDesignerTransforms::CreateTileGenerator(
 			->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
 			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
 			->AddArg(ARG_BLOB(CombinedSlope, "SlopeTexture"))
-			->AddArg(ARG_INT(FMath::Clamp(Samples, 1, 64), "Samples"))
+			->AddArg(ARG_INT(FMath::Clamp(Samples, 1, 256), "Samples"))
 			->AddArg(ARG_INT(Mode, "Mode"))
 			->AddArg(ARG_FLOAT(Intensity, "Intensity"))
 			->AddArg(ARG_FLOAT(bInvertSlope ? 1.0f : 0.0f, "InvertSlope"));

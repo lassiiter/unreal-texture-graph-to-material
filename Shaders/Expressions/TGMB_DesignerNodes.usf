@@ -283,26 +283,42 @@ float4 FSH_TGMBSlopeBlur(float2 UV : TEXCOORD0) : SV_Target0
 	float2 Resolution = TileInfo_layerResolution();
 	float2 Texel = rcp(max(Resolution, 1.0));
 
-	float Left = TGMB_SampleLuma(SlopeTexture, LayerUV - float2(Texel.x, 0));
-	float Right = TGMB_SampleLuma(SlopeTexture, LayerUV + float2(Texel.x, 0));
-	float Up = TGMB_SampleLuma(SlopeTexture, LayerUV - float2(0, Texel.y));
-	float Down = TGMB_SampleLuma(SlopeTexture, LayerUV + float2(0, Texel.y));
-	float2 Dir = normalize(float2(Right - Left, Down - Up) + 0.00001);
+	float2 Grad = float2(0.0, 0.0);
+	for (int Gy = -2; Gy <= 2; ++Gy)
+	{
+		float SmoothY = (Gy == 0) ? 6.0 : ((Gy == -1 || Gy == 1) ? 4.0 : 1.0);
+		float DerivY = (Gy == -2) ? -1.0 : ((Gy == -1) ? -2.0 : ((Gy == 1) ? 2.0 : ((Gy == 2) ? 1.0 : 0.0)));
+		for (int Gx = -2; Gx <= 2; ++Gx)
+		{
+			float SmoothX = (Gx == 0) ? 6.0 : ((Gx == -1 || Gx == 1) ? 4.0 : 1.0);
+			float DerivX = (Gx == -2) ? -1.0 : ((Gx == -1) ? -2.0 : ((Gx == 1) ? 2.0 : ((Gx == 2) ? 1.0 : 0.0)));
+			float SlopeValue = TGMB_SampleLuma(SlopeTexture, LayerUV + Texel * float2(float(Gx), float(Gy)));
+			Grad += SlopeValue * float2(DerivX * SmoothY, DerivY * SmoothX);
+		}
+	}
+	Grad *= 1.0 / 128.0;
+	float GradLen = length(Grad);
+	float DirectionStrength = GradLen / (GradLen + 2.0 / 255.0);
+	float2 Dir = (GradLen > 0.00001) ? (Grad / GradLen) * DirectionStrength : float2(0.0, 0.0);
 	Dir *= lerp(1.0, -1.0, InvertSlope);
 
-	int Count = clamp(Samples, 1, 64);
+	float BlurLengthPx = length(Dir * Intensity * Resolution);
+	int Count = clamp(Samples, 1, 256);
+	float StepPx = (Count > 1) ? (BlurLengthPx / float(Count - 1)) : 0.0;
+	float SampleMip = max(log2(max(StepPx, 1.0)) - 0.5, 0.0);
+
 	float4 Accum = 0.0;
 	float4 MinValue = 9999.0;
 	float4 MaxValue = -9999.0;
-	for (int Index = 0; Index < 64; ++Index)
+	for (int Index = 0; Index < 256; ++Index)
 	{
 		if (Index >= Count)
 		{
 			break;
 		}
 
-		float A = (Count == 1) ? 0.0 : (float(Index) / float(Count - 1) - 0.5);
-		float4 SampleValue = SourceTexture.Sample(SamplerStates_Linear_Wrap, LayerUV + Dir * A * Intensity);
+		float A = (Count == 1) ? 0.0 : ((float(Index) + 0.5) / float(Count) - 0.5);
+		float4 SampleValue = SourceTexture.SampleLevel(SamplerStates_Linear_Wrap, LayerUV + Dir * A * Intensity, SampleMip);
 		Accum += SampleValue;
 		MinValue = min(MinValue, SampleValue);
 		MaxValue = max(MaxValue, SampleValue);
