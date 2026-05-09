@@ -78,6 +78,13 @@ enum class ETGMBBevelMode : uint8
 };
 
 UENUM(BlueprintType)
+enum class ETGMBCurvatureSobelOutput : uint8
+{
+	Strength = 0 UMETA(DisplayName = "Strength"),
+	BinaryMask = 1 UMETA(DisplayName = "Binary Mask")
+};
+
+UENUM(BlueprintType)
 enum class ETGMBCellsPattern : uint8
 {
 	Disc = 0 UMETA(DisplayName = "Disc"),
@@ -423,10 +430,13 @@ public:
 	TG_DECLARE_EXPRESSION(TG_Category::Filter);
 	virtual void Evaluate(FTG_EvaluationContext* InContext) override;
 	virtual FTG_Name GetDefaultName() const override { return TEXT("Curvature Sobel"); }
-	virtual FText GetTooltipText() const override { return FText::FromString(TEXT("Computes curvature using Sobel edge detection.")); }
+	virtual FText GetTooltipText() const override { return FText::FromString(TEXT("Computes continuous Sobel edge strength, with an optional thresholded mask output.")); }
 	UPROPERTY(meta = (TGType = "TG_Input", PinDisplayName = "Source")) FTG_Texture Source;
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) float Radius = 1.0f;
-	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) float Intensity = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting"))
+	ETGMBCurvatureSobelOutput OutputMode = ETGMBCurvatureSobelOutput::Strength;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "16", ClampMax = "64")) float Radius = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "4", ClampMax = "64")) float Intensity = 1.0f;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting", UIMin = "0", ClampMin = "0", UIMax = "1", ClampMax = "1")) float Threshold = 0.5f;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "")) FTG_Texture Output;
 };
 

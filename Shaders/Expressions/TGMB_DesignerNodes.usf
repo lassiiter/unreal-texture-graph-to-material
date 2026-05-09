@@ -709,6 +709,11 @@ float4 FSH_TGMBCurvatureSobel(float2 UV : TEXCOORD0) : SV_Target0
 
 	float EdgeX, EdgeY;
 	TGMB_Sobel(SourceTexture, LayerUV, Texel, EdgeX, EdgeY);
-	float Curvature = (abs(EdgeX) + abs(EdgeY)) * Intensity;
-	return float4(saturate(Curvature).xxx, 1.0);
+	float EdgeStrength = saturate((abs(EdgeX) + abs(EdgeY)) * Intensity);
+	float Value = EdgeStrength;
+	if (OutputMode == 1)
+	{
+		Value = step(saturate(Threshold), EdgeStrength);
+	}
+	return float4(Value.xxx, 1.0);
 }

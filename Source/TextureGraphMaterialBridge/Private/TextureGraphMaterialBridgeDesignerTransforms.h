@@ -356,8 +356,10 @@ public:
 		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
 		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
 		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+		SHADER_PARAMETER(int32, OutputMode)
 		SHADER_PARAMETER(float, Radius)
 		SHADER_PARAMETER(float, Intensity)
+		SHADER_PARAMETER(float, Threshold)
 	END_SHADER_PARAMETER_STRUCT()
 	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
 	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
@@ -647,7 +649,7 @@ namespace UE::TextureGraphMaterialBridge
 		static TiledBlobPtr CreateHighpass(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Radius, float Contrast);
 		static TiledBlobPtr CreateLuminanceHighpass(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Radius, float Contrast);
 		static TiledBlobPtr CreateBlurHQ(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Intensity, float Quality);
-		static TiledBlobPtr CreateCurvatureSobel(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Radius, float Intensity);
+		static TiledBlobPtr CreateCurvatureSobel(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 OutputMode, float Radius, float Intensity, float Threshold);
 
 static TiledBlobPtr CreateTileGenerator(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, int32 OutputMode, int32 PatternType, int32 Seed, float CountX, float CountY, float Scale, float Spacing, float OffsetX, float OffsetY, float Rotation, float PositionJitter, float SizeJitter, float RotationJitter, float LuminanceJitter);
 		static TiledBlobPtr CreateTileSampler(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr Mask, TiledBlobPtr ScaleMap, TiledBlobPtr RotationMap, int32 Seed, float CountX, float CountY, float Scale, float Spacing, float Rotation, float PositionJitter, float SizeJitter, float RotationJitter);

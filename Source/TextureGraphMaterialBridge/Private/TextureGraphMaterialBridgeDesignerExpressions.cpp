@@ -209,7 +209,7 @@ void UTG_Expression_TGMB_BlurHQ::Evaluate(FTG_EvaluationContext* InContext)
 
 void UTG_Expression_TGMB_CurvatureSobel::Evaluate(FTG_EvaluationContext* InContext) {
 	Super::Evaluate(InContext);
-	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateCurvatureSobel(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, Radius, Intensity);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateCurvatureSobel(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, static_cast<int32>(OutputMode), Radius, Intensity, Threshold);
 }
 
 void UTG_Expression_TGMB_TileGenerator::Evaluate(FTG_EvaluationContext* InContext)

@@ -454,15 +454,17 @@ namespace UE::TextureGraphMaterialBridge
 		return Result;
 	}
 
-	TiledBlobPtr FDesignerTransforms::CreateCurvatureSobel(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Radius, float Intensity) {
+	TiledBlobPtr FDesignerTransforms::CreateCurvatureSobel(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 OutputMode, float Radius, float Intensity, float Threshold) {
 		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source ? Source : TextureHelper::GetBlack());
 		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, CombinedSource);
 		FTileInfo TileInfo;
 		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBCurvatureSobel>(Cycle, TargetId, TEXT("TGMB_CurvatureSobel"));
 		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
 			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
-			->AddArg(ARG_FLOAT(Radius, "Radius"))
-			->AddArg(ARG_FLOAT(Intensity, "Intensity"))
+			->AddArg(ARG_INT(FMath::Clamp(OutputMode, 0, 1), "OutputMode"))
+			->AddArg(ARG_FLOAT(FMath::Clamp(Radius, 0.0f, 64.0f), "Radius"))
+			->AddArg(ARG_FLOAT(FMath::Clamp(Intensity, 0.0f, 64.0f), "Intensity"))
+			->AddArg(ARG_FLOAT(FMath::Clamp(Threshold, 0.0f, 1.0f), "Threshold"))
 			;
 		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB CurvatureSobel"), &Desc);
 		Cycle->AddJob(TargetId, std::move(RenderJob));
