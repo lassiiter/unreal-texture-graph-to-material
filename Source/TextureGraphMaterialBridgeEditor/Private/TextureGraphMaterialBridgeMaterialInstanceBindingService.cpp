@@ -12,6 +12,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IContentBrowserSingleton.h"
 #include "IDetailsView.h"
+#include "IMaterialEditor.h"
 #include "MaterialEditorModule.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
@@ -21,7 +22,9 @@
 #include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
 #include "Styling/AppStyle.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "TextureGraph.h"
+#include "UObject/UObjectIterator.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Layout/SBorder.h"
@@ -135,12 +138,86 @@ namespace
 
 	void RefreshMaterialInstanceEditor(UMaterialInstanceConstant* MaterialInstance, UMaterialEditorInstanceConstant* EditorInstance)
 	{
-		if (EditorInstance)
+		if (MaterialInstance)
 		{
-			EditorInstance->RegenerateArrays();
+			MaterialInstance->UpdateCachedData();
+			MaterialInstance->RecacheUniformExpressions(true);
+		}
+
+		TSet<UMaterialEditorInstanceConstant*> RefreshedEditorInstances;
+		if (EditorInstance && MaterialInstance)
+		{
+			EditorInstance->SetSourceInstance(MaterialInstance);
 			if (TSharedPtr<IDetailsView> DetailsView = EditorInstance->DetailsView.Pin())
 			{
 				DetailsView->ForceRefresh();
+			}
+			RefreshedEditorInstances.Add(EditorInstance);
+		}
+
+		if (MaterialInstance)
+		{
+			for (TObjectIterator<UMaterialEditorInstanceConstant> It; It; ++It)
+			{
+				UMaterialEditorInstanceConstant* CandidateEditorInstance = *It;
+				if (!CandidateEditorInstance
+					|| CandidateEditorInstance->HasAnyFlags(RF_ClassDefaultObject)
+					|| RefreshedEditorInstances.Contains(CandidateEditorInstance)
+					|| CandidateEditorInstance->GetMaterialInterface() != MaterialInstance)
+				{
+					continue;
+				}
+
+				UE_LOG(
+					LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+					Log,
+					TEXT("Regenerating transient Material Editor instance '%s' for Material Instance '%s' after Texture Graph binding assignment."),
+					*CandidateEditorInstance->GetPathName(),
+					*MaterialInstance->GetPathName());
+
+				CandidateEditorInstance->SetSourceInstance(MaterialInstance);
+				if (TSharedPtr<IDetailsView> DetailsView = CandidateEditorInstance->DetailsView.Pin())
+				{
+					DetailsView->ForceRefresh();
+				}
+				RefreshedEditorInstances.Add(CandidateEditorInstance);
+			}
+		}
+
+		UAssetEditorSubsystem* AssetEditorSubsystem = GEditor ? GEditor->GetEditorSubsystem<UAssetEditorSubsystem>() : nullptr;
+		if (AssetEditorSubsystem && MaterialInstance)
+		{
+			TArray<IAssetEditorInstance*> EditorInstances = AssetEditorSubsystem->FindEditorsForAsset(MaterialInstance);
+			if (EditorInstances.IsEmpty())
+			{
+				EditorInstances = AssetEditorSubsystem->FindEditorsForAssetAndSubObjects(MaterialInstance);
+			}
+
+			for (IAssetEditorInstance* OpenEditorInstance : EditorInstances)
+			{
+				if (!OpenEditorInstance)
+				{
+					continue;
+				}
+
+				const FName EditorName = OpenEditorInstance->GetEditorName();
+				if (EditorName != FName(TEXT("MaterialInstanceEditor")) && EditorName != FName(TEXT("MaterialEditor")))
+				{
+					continue;
+				}
+
+				UE_LOG(
+					LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+					Log,
+					TEXT("Refreshing open %s for Material Instance '%s' after Texture Graph binding assignment."),
+					*EditorName.ToString(),
+					*MaterialInstance->GetPathName());
+
+				IMaterialEditor* MaterialEditor = static_cast<IMaterialEditor*>(OpenEditorInstance);
+				MaterialEditor->NotifyExternalMaterialChange();
+				MaterialEditor->UpdateDetailView();
+				MaterialEditor->ForceRefreshExpressionPreviews();
+				MaterialEditor->RefreshStatsMaterials();
 			}
 		}
 
