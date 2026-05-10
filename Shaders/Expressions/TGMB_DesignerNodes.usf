@@ -193,7 +193,8 @@ float4 FSH_TGMBTileSampler(float2 UV : TEXCOORD0) : SV_Target0
 
 float4 FSH_TGMBGradientMap(float2 UV : TEXCOORD0) : SV_Target0
 {
-	float T = TGMB_Luma(SourceTexture.Sample(SamplerStates_Linear_Wrap, UV));
+	float2 LayerUV = TileInfo_fromCurrentTileToLayer(UV);
+	float T = TGMB_Luma(SourceTexture.Sample(SamplerStates_Linear_Wrap, LayerUV));
 	if (AddressMode == 1)
 	{
 		T = frac(T);

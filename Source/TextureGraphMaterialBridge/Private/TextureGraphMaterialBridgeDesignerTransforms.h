@@ -444,6 +444,7 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBGradientMap, FSH_Base);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
 		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
 		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
 		SHADER_PARAMETER(int32, NumStops)

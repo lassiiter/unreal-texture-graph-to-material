@@ -883,9 +883,11 @@ TiledBlobPtr FDesignerTransforms::CreateTileGenerator(
 
 		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source);
 		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, Source);
+		FTileInfo TileInfo;
 
 		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBGradientMap>(Cycle, TargetId, TEXT("TGMB_GradientMap"));
 		RenderJob
+			->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
 			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
 			->AddArg(ARG_INT(FMath::Clamp(Settings.NumStops, 2, 8), "NumStops"))
 			->AddArg(ARG_INT(Settings.Interpolation, "Interpolation"))
