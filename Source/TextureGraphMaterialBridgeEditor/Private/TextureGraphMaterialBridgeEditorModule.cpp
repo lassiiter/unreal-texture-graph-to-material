@@ -1,6 +1,7 @@
 #include "TextureGraphMaterialBridgeEditorModule.h"
 
 #include "TextureGraphMaterialBridgeEditorHooks.h"
+#include "TextureGraphMaterialBridgeMaterialInstanceBindingService.h"
 #include "TextureGraphMaterialBridgeMaterialCreationService.h"
 #include "TextureGraphMaterialBridgeSaveService.h"
 #include "MaterialExpressionTextureGraphOutput.h"
@@ -49,6 +50,13 @@ FTextureGraphMaterialBridgeEditorModule::~FTextureGraphMaterialBridgeEditorModul
 	delete SaveService;
 	SaveService = nullptr;
 
+	if (MaterialInstanceBindingService)
+	{
+		MaterialInstanceBindingService->Shutdown();
+	}
+	delete MaterialInstanceBindingService;
+	MaterialInstanceBindingService = nullptr;
+
 	delete MaterialCreationService;
 	MaterialCreationService = nullptr;
 }
@@ -59,6 +67,9 @@ void FTextureGraphMaterialBridgeEditorModule::StartupModule()
 	FTextureGraphMaterialBridgeEditorHooks::OnCreateTextureGraphSampleNodeWidget().BindStatic(&CreateTextureGraphSampleNodeWidget);
 
 	MaterialCreationService = new FTextureGraphMaterialBridgeMaterialCreationService();
+
+	MaterialInstanceBindingService = new FTextureGraphMaterialBridgeMaterialInstanceBindingService();
+	MaterialInstanceBindingService->Startup();
 
 	SaveService = new FTextureGraphMaterialBridgeSaveService();
 	SaveService->Startup();
@@ -73,6 +84,13 @@ void FTextureGraphMaterialBridgeEditorModule::ShutdownModule()
 		SaveService = nullptr;
 	}
 
+	if (MaterialInstanceBindingService)
+	{
+		MaterialInstanceBindingService->Shutdown();
+		delete MaterialInstanceBindingService;
+		MaterialInstanceBindingService = nullptr;
+	}
+
 	delete MaterialCreationService;
 	MaterialCreationService = nullptr;
 
@@ -84,6 +102,12 @@ FTextureGraphMaterialBridgeMaterialCreationService& FTextureGraphMaterialBridgeE
 {
 	check(MaterialCreationService);
 	return *MaterialCreationService;
+}
+
+FTextureGraphMaterialBridgeMaterialInstanceBindingService& FTextureGraphMaterialBridgeEditorModule::GetMaterialInstanceBindingService()
+{
+	check(MaterialInstanceBindingService);
+	return *MaterialInstanceBindingService;
 }
 
 IMPLEMENT_MODULE(FTextureGraphMaterialBridgeEditorModule, TextureGraphMaterialBridgeEditor)

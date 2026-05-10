@@ -1,7 +1,9 @@
 #include "TextureGraphMaterialBridgeSaveService.h"
 
 #include "TextureGraphMaterialBridgeEditorExportUtils.h"
+#include "TextureGraphMaterialBridgeEditorModule.h"
 #include "TextureGraphMaterialBridgeExpressionUtils.h"
+#include "TextureGraphMaterialBridgeMaterialInstanceBindingService.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
@@ -54,9 +56,21 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 	UE::TextureGraphMaterialBridgeEditor::EnsureAllLiveTextureGraphTargetsInitialized();
 
 	TArray<FSoftObjectPath> ReferencingMaterialPaths = FindReferencingMaterialPaths(SavedTextureGraph);
+	TArray<FSoftObjectPath> BoundMaterialInstancePaths;
+	if (FTextureGraphMaterialBridgeEditorModule* EditorModule = FModuleManager::GetModulePtr<FTextureGraphMaterialBridgeEditorModule>("TextureGraphMaterialBridgeEditor"))
+	{
+		BoundMaterialInstancePaths = EditorModule->GetMaterialInstanceBindingService().FindBoundMaterialInstancePaths(SavedTextureGraph);
+	}
+
+	if (ReferencingMaterialPaths.IsEmpty() && BoundMaterialInstancePaths.IsEmpty())
+	{
+		UE_LOG(LogTextureGraphMaterialBridgeSaveService, Verbose, TEXT("TextureGraphMaterialBridge skipped refresh for '%s' because no referencing materials or bound material instances were found."), *SavedTextureGraph->GetPathName());
+		return;
+	}
+
 	if (ReferencingMaterialPaths.IsEmpty())
 	{
-		UE_LOG(LogTextureGraphMaterialBridgeSaveService, Verbose, TEXT("TextureGraphMaterialBridge skipped refresh for '%s' because no referencing materials were found."), *SavedTextureGraph->GetPathName());
+		RefreshMaterialInstanceBindings(SavedTextureGraph, BoundMaterialInstancePaths);
 		return;
 	}
 
@@ -65,6 +79,7 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 	if (!ExportSource.TextureGraph)
 	{
 		UE_LOG(LogTextureGraphMaterialBridgeSaveService, Warning, TEXT("TextureGraphMaterialBridge could not resolve an export graph for '%s'."), *SavedTextureGraph->GetPathName());
+		RefreshMaterialInstanceBindings(SavedTextureGraph, BoundMaterialInstancePaths);
 		return;
 	}
 
@@ -84,12 +99,14 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 		FTG_HelperFunctions::ExportAsync(ExportSource.TextureGraph, TEXT(""), TEXT(""), ExportSettings, false, true, false, true)
 			.then(
 				[MaterialPaths = MoveTemp(ReferencingMaterialPaths),
+				 BoundMaterialInstancePaths = MoveTemp(BoundMaterialInstancePaths),
 				 SavedTextureGraphPath,
 				 SavedTextureGraph = TWeakObjectPtr<UTextureGraphBase>(SavedTextureGraph)](int32 NumExports) mutable
 		{
 			AsyncTask(
 				ENamedThreads::GameThread,
 				[MaterialPaths = MoveTemp(MaterialPaths),
+				 BoundMaterialInstancePaths = MoveTemp(BoundMaterialInstancePaths),
 				 SavedTextureGraphPath = MoveTemp(SavedTextureGraphPath),
 				 SavedTextureGraph = MoveTemp(SavedTextureGraph),
 				 NumExports]() mutable
@@ -114,6 +131,8 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 						TEXT("TextureGraphMaterialBridge skipped material recompilation for '%s' because the save-triggered export produced no textures."),
 						*SavedTextureGraphPath);
 				}
+
+				RefreshMaterialInstanceBindings(SavedTextureGraph.Get(), BoundMaterialInstancePaths);
 			});
 
 			return NumExports;
@@ -127,6 +146,7 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 	if (!PreparedExportTextureGraph)
 	{
 		UE_LOG(LogTextureGraphMaterialBridgeSaveService, Warning, TEXT("TextureGraphMaterialBridge could not prepare an export graph for '%s'."), *SavedTextureGraph->GetPathName());
+		RefreshMaterialInstanceBindings(SavedTextureGraph, BoundMaterialInstancePaths);
 		return;
 	}
 
@@ -144,6 +164,7 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 	UE::TextureGraphMaterialBridgeEditor::ExportPreparedTextureGraphAsync(ExportTextureGraph.Get(), ExportSettings)
 		.then(
 			[MaterialPaths = MoveTemp(ReferencingMaterialPaths),
+			 BoundMaterialInstancePaths = MoveTemp(BoundMaterialInstancePaths),
 			 ExportTextureGraph = MoveTemp(ExportTextureGraph),
 			 SavedTextureGraphPath = SavedTextureGraph->GetPathName(),
 			 SavedTextureGraph = TWeakObjectPtr<UTextureGraphBase>(SavedTextureGraph),
@@ -152,6 +173,7 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 			AsyncTask(
 				ENamedThreads::GameThread,
 				[MaterialPaths = MoveTemp(MaterialPaths),
+				 BoundMaterialInstancePaths = MoveTemp(BoundMaterialInstancePaths),
 				 ExportTextureGraph = MoveTemp(ExportTextureGraph),
 				 SavedTextureGraphPath = MoveTemp(SavedTextureGraphPath),
 				 SavedTextureGraph = MoveTemp(SavedTextureGraph),
@@ -180,6 +202,8 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 						TEXT("TextureGraphMaterialBridge skipped material recompilation for '%s' because the save-triggered export produced no textures."),
 						*SavedTextureGraphPath);
 				}
+
+				RefreshMaterialInstanceBindings(SavedTextureGraph.Get(), BoundMaterialInstancePaths);
 			});
 
 			return NumExports;
@@ -277,6 +301,22 @@ void FTextureGraphMaterialBridgeSaveService::RecompileMaterials(const TArray<FSo
 		UMaterialEditingLibrary::RecompileMaterial(Material);
 		ForceRefreshMaterialEditorPreviews(Material);
 	}
+}
+
+void FTextureGraphMaterialBridgeSaveService::RefreshMaterialInstanceBindings(UTextureGraphBase* TextureGraph, const TArray<FSoftObjectPath>& MaterialInstancePaths)
+{
+	if (!TextureGraph || MaterialInstancePaths.IsEmpty())
+	{
+		return;
+	}
+
+	FTextureGraphMaterialBridgeEditorModule* EditorModule = FModuleManager::GetModulePtr<FTextureGraphMaterialBridgeEditorModule>("TextureGraphMaterialBridgeEditor");
+	if (!EditorModule)
+	{
+		return;
+	}
+
+	EditorModule->GetMaterialInstanceBindingService().RefreshBindingsForTextureGraph(TextureGraph, MaterialInstancePaths);
 }
 
 void FTextureGraphMaterialBridgeSaveService::RefreshExportedTextureResources(const UTextureGraphBase* TextureGraph)

@@ -21,6 +21,7 @@ private:
 	TArray<FSoftObjectPath> FindReferencingMaterialPaths(const UTextureGraphBase* TextureGraph) const;
 	static bool MaterialReferencesTextureGraph(const UMaterial* Material, const UTextureGraphBase* TextureGraph);
 	static void RecompileMaterials(const TArray<FSoftObjectPath>& MaterialPaths, const UTextureGraphBase* TextureGraph);
+	static void RefreshMaterialInstanceBindings(UTextureGraphBase* TextureGraph, const TArray<FSoftObjectPath>& MaterialInstancePaths);
 	static void RefreshExportedTextureResources(const UTextureGraphBase* TextureGraph);
 	static void RefreshReferencedTextureGraphExpressions(UMaterial* Material, const UTextureGraphBase* TextureGraph);
 	static void ForceRefreshMaterialEditorPreviews(UMaterial* Material);
