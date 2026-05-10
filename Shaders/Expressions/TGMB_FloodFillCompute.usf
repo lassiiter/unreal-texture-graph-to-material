@@ -1,0 +1,254 @@
+#include "/Engine/Public/Platform.ush"
+
+Texture2D SourceTexture;
+
+float Threshold;
+int Connectivity;
+int4 Dimensions;
+
+RWStructuredBuffer<uint> InitLabels;
+RWStructuredBuffer<uint> InitBounds;
+
+RWStructuredBuffer<uint> UnionLabels;
+RWStructuredBuffer<uint> CompressLabels;
+RWStructuredBuffer<uint> ResetBounds;
+RWStructuredBuffer<uint> ReduceBounds;
+
+StructuredBuffer<uint> Labels;
+StructuredBuffer<uint> FinalLabels;
+StructuredBuffer<uint> FinalBounds;
+
+RWTexture2D<float4> Result;
+
+uint TGMB_FloodFillIndex(int2 Pixel)
+{
+	return uint(Pixel.y * Dimensions.x + Pixel.x);
+}
+
+bool TGMB_FloodFillInBounds(int2 Pixel)
+{
+	return all(Pixel >= 0) && Pixel.x < Dimensions.x && Pixel.y < Dimensions.y;
+}
+
+float TGMB_FloodFillLuma(float4 Color)
+{
+	return dot(Color.rgb, float3(0.299, 0.587, 0.114));
+}
+
+uint TGMB_FloodFillFindRootRW(uint Label)
+{
+	[loop]
+	for (uint Iter = 0; Iter < 4096; ++Iter)
+	{
+		if (Label == 0)
+		{
+			return 0;
+		}
+
+		uint Parent = UnionLabels[Label - 1];
+		if (Parent == 0 || Parent == Label)
+		{
+			return Label;
+		}
+
+		Label = Parent;
+	}
+
+	return Label;
+}
+
+void TGMB_FloodFillUnion(uint A, uint B)
+{
+	uint RootA = TGMB_FloodFillFindRootRW(A);
+	uint RootB = TGMB_FloodFillFindRootRW(B);
+
+	[loop]
+	for (uint Iter = 0; Iter < 32 && RootA != RootB; ++Iter)
+	{
+		uint HighRoot = max(RootA, RootB);
+		uint LowRoot = min(RootA, RootB);
+		uint OldParent = HighRoot;
+		InterlockedMin(UnionLabels[HighRoot - 1], LowRoot, OldParent);
+
+		if (OldParent == HighRoot || OldParent == LowRoot)
+		{
+			break;
+		}
+
+		RootA = TGMB_FloodFillFindRootRW(LowRoot);
+		RootB = TGMB_FloodFillFindRootRW(OldParent);
+	}
+}
+
+uint TGMB_FloodFillFindRootCompress(uint Label)
+{
+	[loop]
+	for (uint Iter = 0; Iter < 4096; ++Iter)
+	{
+		if (Label == 0)
+		{
+			return 0;
+		}
+
+		uint Parent = CompressLabels[Label - 1];
+		if (Parent == 0 || Parent == Label)
+		{
+			return Label;
+		}
+
+		Label = Parent;
+	}
+
+	return Label;
+}
+
+[numthreads(THREADGROUPSIZE_X, THREADGROUPSIZE_Y, THREADGROUPSIZE_Z)]
+void CSH_TGMBFloodFillInit(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	int2 Pixel = int2(DispatchThreadId.xy);
+	if (!TGMB_FloodFillInBounds(Pixel))
+	{
+		return;
+	}
+
+	uint Index = TGMB_FloodFillIndex(Pixel);
+	uint Label = (TGMB_FloodFillLuma(SourceTexture.Load(int3(Pixel, 0))) >= Threshold) ? (Index + 1) : 0;
+	InitLabels[Index] = Label;
+
+	uint BoundsBase = Index * 4;
+	InitBounds[BoundsBase + 0] = uint(Dimensions.x);
+	InitBounds[BoundsBase + 1] = uint(Dimensions.y);
+	InitBounds[BoundsBase + 2] = 0;
+	InitBounds[BoundsBase + 3] = 0;
+}
+
+void TGMB_FloodFillTryUnion(int2 Pixel, uint Label, int2 Offset)
+{
+	int2 NeighborPixel = Pixel + Offset;
+	if (!TGMB_FloodFillInBounds(NeighborPixel))
+	{
+		return;
+	}
+
+	uint NeighborLabel = UnionLabels[TGMB_FloodFillIndex(NeighborPixel)];
+	if (NeighborLabel != 0)
+	{
+		TGMB_FloodFillUnion(Label, NeighborLabel);
+	}
+}
+
+[numthreads(THREADGROUPSIZE_X, THREADGROUPSIZE_Y, THREADGROUPSIZE_Z)]
+void CSH_TGMBFloodFillUnion(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	int2 Pixel = int2(DispatchThreadId.xy);
+	if (!TGMB_FloodFillInBounds(Pixel))
+	{
+		return;
+	}
+
+	uint Label = UnionLabels[TGMB_FloodFillIndex(Pixel)];
+	if (Label == 0)
+	{
+		return;
+	}
+
+	TGMB_FloodFillTryUnion(Pixel, Label, int2(-1, 0));
+	TGMB_FloodFillTryUnion(Pixel, Label, int2(1, 0));
+	TGMB_FloodFillTryUnion(Pixel, Label, int2(0, -1));
+	TGMB_FloodFillTryUnion(Pixel, Label, int2(0, 1));
+
+	if (Connectivity != 0)
+	{
+		TGMB_FloodFillTryUnion(Pixel, Label, int2(-1, -1));
+		TGMB_FloodFillTryUnion(Pixel, Label, int2(1, -1));
+		TGMB_FloodFillTryUnion(Pixel, Label, int2(-1, 1));
+		TGMB_FloodFillTryUnion(Pixel, Label, int2(1, 1));
+	}
+}
+
+[numthreads(THREADGROUPSIZE_X, THREADGROUPSIZE_Y, THREADGROUPSIZE_Z)]
+void CSH_TGMBFloodFillCompress(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	int2 Pixel = int2(DispatchThreadId.xy);
+	if (!TGMB_FloodFillInBounds(Pixel))
+	{
+		return;
+	}
+
+	uint Index = TGMB_FloodFillIndex(Pixel);
+	uint Label = CompressLabels[Index];
+	CompressLabels[Index] = TGMB_FloodFillFindRootCompress(Label);
+}
+
+[numthreads(THREADGROUPSIZE_X, THREADGROUPSIZE_Y, THREADGROUPSIZE_Z)]
+void CSH_TGMBFloodFillResetBounds(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	int2 Pixel = int2(DispatchThreadId.xy);
+	if (!TGMB_FloodFillInBounds(Pixel))
+	{
+		return;
+	}
+
+	uint BoundsBase = TGMB_FloodFillIndex(Pixel) * 4;
+	ResetBounds[BoundsBase + 0] = uint(Dimensions.x);
+	ResetBounds[BoundsBase + 1] = uint(Dimensions.y);
+	ResetBounds[BoundsBase + 2] = 0;
+	ResetBounds[BoundsBase + 3] = 0;
+}
+
+[numthreads(THREADGROUPSIZE_X, THREADGROUPSIZE_Y, THREADGROUPSIZE_Z)]
+void CSH_TGMBFloodFillReduceBounds(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	int2 Pixel = int2(DispatchThreadId.xy);
+	if (!TGMB_FloodFillInBounds(Pixel))
+	{
+		return;
+	}
+
+	uint Index = TGMB_FloodFillIndex(Pixel);
+	uint Label = Labels[Index];
+	if (Label == 0)
+	{
+		return;
+	}
+
+	uint BoundsBase = (Label - 1) * 4;
+	uint OldValue;
+	InterlockedMin(ReduceBounds[BoundsBase + 0], uint(Pixel.x), OldValue);
+	InterlockedMin(ReduceBounds[BoundsBase + 1], uint(Pixel.y), OldValue);
+	InterlockedMax(ReduceBounds[BoundsBase + 2], uint(Pixel.x + 1), OldValue);
+	InterlockedMax(ReduceBounds[BoundsBase + 3], uint(Pixel.y + 1), OldValue);
+}
+
+[numthreads(THREADGROUPSIZE_X, THREADGROUPSIZE_Y, THREADGROUPSIZE_Z)]
+void CSH_TGMBFloodFillEmitData(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	int2 Pixel = int2(DispatchThreadId.xy);
+	if (!TGMB_FloodFillInBounds(Pixel))
+	{
+		return;
+	}
+
+	uint Index = TGMB_FloodFillIndex(Pixel);
+	uint Label = FinalLabels[Index];
+	if (Label == 0)
+	{
+		Result[Pixel] = float4(0.0, 0.0, 0.0, 0.0);
+		return;
+	}
+
+	uint BoundsBase = (Label - 1) * 4;
+	uint MinX = FinalBounds[BoundsBase + 0];
+	uint MinY = FinalBounds[BoundsBase + 1];
+	uint MaxX = FinalBounds[BoundsBase + 2];
+	uint MaxY = FinalBounds[BoundsBase + 3];
+
+	if (MinX >= uint(Dimensions.x) || MinY >= uint(Dimensions.y) || MaxX <= MinX || MaxY <= MinY)
+	{
+		Result[Pixel] = float4(0.0, 0.0, 0.0, 0.0);
+		return;
+	}
+
+	float2 InvDimensions = rcp(float2(max(Dimensions.x, 1), max(Dimensions.y, 1)));
+	Result[Pixel] = float4(float2(MinX, MinY) * InvDimensions, float2(MaxX, MaxY) * InvDimensions);
+}

@@ -61,6 +61,11 @@ void UTG_Expression_TGMB_FloodFillToPosition::Evaluate(FTG_EvaluationContext* In
 	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateFloodFillToPosition(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob);
 }
 
+void UTG_Expression_TGMB_FloodFillToBBoxSize::Evaluate(FTG_EvaluationContext* InContext) {
+	Super::Evaluate(InContext);
+	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateFloodFillToBBoxSize(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, static_cast<int32>(OutputMode));
+}
+
 void UTG_Expression_TGMB_FloodFillMapper::Evaluate(FTG_EvaluationContext* InContext) {
 	Super::Evaluate(InContext);
 	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateFloodFillMapper(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, MaskTexture.RasterBlob);
@@ -291,26 +296,21 @@ void UTG_Expression_TGMB_FloodFill::Evaluate(FTG_EvaluationContext* InContext)
 {
 	Super::Evaluate(InContext);
 
-	FloodFillData = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateFloodFill(
+	FloodFillData = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateFloodFillData(
 		InContext->Cycle,
 		FloodFillData.GetBufferDescriptor(),
 		InContext->TargetId,
 		Input.RasterBlob,
-		2, // OutputMode 2 for data
 		static_cast<int32>(Connectivity),
-		Seed,
-		Threshold,
-		GradientAngle);
+		Threshold);
 
 	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateFloodFill(
 		InContext->Cycle,
 		Output.GetBufferDescriptor(),
 		InContext->TargetId,
-		Input.RasterBlob,
+		FloodFillData,
 		static_cast<int32>(OutputMode),
-		static_cast<int32>(Connectivity),
 		Seed,
-		Threshold,
 		GradientAngle);
 }
 

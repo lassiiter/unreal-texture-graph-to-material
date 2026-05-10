@@ -4,13 +4,128 @@
 #include "FxMat/MaterialManager.h"
 #include "Job/JobArgs.h"
 #include "Job/JobBatch.h"
+#include "RHICommandList.h"
+#include "TextureResource.h"
 #include "TextureGraphEngine.h"
 #include "Transform/Utility/T_CombineTiledBlob.h"
+
+class CSH_TGMBFloodFillInit : public CmpSH_Base<16, 16, 1>
+{
+public:
+	DECLARE_GLOBAL_SHADER(CSH_TGMBFloodFillInit);
+	SHADER_USE_PARAMETER_STRUCT(CSH_TGMBFloodFillInit, CmpSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_UAV(RWTexture2D<float4>, Result)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+		SHADER_PARAMETER(float, Threshold)
+		SHADER_PARAMETER(int32, Connectivity)
+		SHADER_PARAMETER(FIntVector4, Dimensions)
+		SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, InitLabels)
+		SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, InitBounds)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+};
+
+class CSH_TGMBFloodFillUnion : public CmpSH_Base<16, 16, 1>
+{
+public:
+	DECLARE_GLOBAL_SHADER(CSH_TGMBFloodFillUnion);
+	SHADER_USE_PARAMETER_STRUCT(CSH_TGMBFloodFillUnion, CmpSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(int32, Connectivity)
+		SHADER_PARAMETER(FIntVector4, Dimensions)
+		SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, UnionLabels)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+};
+
+class CSH_TGMBFloodFillCompress : public CmpSH_Base<16, 16, 1>
+{
+public:
+	DECLARE_GLOBAL_SHADER(CSH_TGMBFloodFillCompress);
+	SHADER_USE_PARAMETER_STRUCT(CSH_TGMBFloodFillCompress, CmpSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntVector4, Dimensions)
+		SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, CompressLabels)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+};
+
+class CSH_TGMBFloodFillResetBounds : public CmpSH_Base<16, 16, 1>
+{
+public:
+	DECLARE_GLOBAL_SHADER(CSH_TGMBFloodFillResetBounds);
+	SHADER_USE_PARAMETER_STRUCT(CSH_TGMBFloodFillResetBounds, CmpSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntVector4, Dimensions)
+		SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, ResetBounds)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+};
+
+class CSH_TGMBFloodFillReduceBounds : public CmpSH_Base<16, 16, 1>
+{
+public:
+	DECLARE_GLOBAL_SHADER(CSH_TGMBFloodFillReduceBounds);
+	SHADER_USE_PARAMETER_STRUCT(CSH_TGMBFloodFillReduceBounds, CmpSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntVector4, Dimensions)
+		SHADER_PARAMETER_SRV(StructuredBuffer<uint>, Labels)
+		SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, ReduceBounds)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+};
+
+class CSH_TGMBFloodFillEmitData : public CmpSH_Base<16, 16, 1>
+{
+public:
+	DECLARE_GLOBAL_SHADER(CSH_TGMBFloodFillEmitData);
+	SHADER_USE_PARAMETER_STRUCT(CSH_TGMBFloodFillEmitData, CmpSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntVector4, Dimensions)
+		SHADER_PARAMETER_SRV(StructuredBuffer<uint>, FinalLabels)
+		SHADER_PARAMETER_SRV(StructuredBuffer<uint>, FinalBounds)
+		SHADER_PARAMETER_UAV(RWTexture2D<float4>, Result)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(CSH_TGMBFloodFillInit, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_FloodFillCompute.usf", "CSH_TGMBFloodFillInit", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(CSH_TGMBFloodFillUnion, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_FloodFillCompute.usf", "CSH_TGMBFloodFillUnion", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(CSH_TGMBFloodFillCompress, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_FloodFillCompute.usf", "CSH_TGMBFloodFillCompress", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(CSH_TGMBFloodFillResetBounds, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_FloodFillCompute.usf", "CSH_TGMBFloodFillResetBounds", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(CSH_TGMBFloodFillReduceBounds, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_FloodFillCompute.usf", "CSH_TGMBFloodFillReduceBounds", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(CSH_TGMBFloodFillEmitData, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_FloodFillCompute.usf", "CSH_TGMBFloodFillEmitData", SF_Compute);
 
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBFloodFillToRandomGrayscale, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBFloodFillToRandomGrayscale", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBFloodFillToRandomColor, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBFloodFillToRandomColor", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBFloodFillToGradient, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBFloodFillToGradient", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBFloodFillToPosition, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBFloodFillToPosition", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSH_TGMBFloodFillToBBoxSize, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBFloodFillToBBoxSize", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBFloodFillMapper, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBFloodFillMapper", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBMultiDirectionalWarp, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBMultiDirectionalWarp", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FSH_TGMBNonUniformDirectionalWarp, "/Plugin/TextureGraphMaterialBridge/Expressions/TGMB_DesignerNodes.usf", "FSH_TGMBNonUniformDirectionalWarp", SF_Pixel);
@@ -74,6 +189,156 @@ namespace UE::TextureGraphMaterialBridge
 			return Desc;
 		}
 
+		BufferDescriptor BuildFloodFillDataDesc(BufferDescriptor DesiredDesc, TiledBlobPtr Reference)
+		{
+			BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, Reference, 4);
+			Desc.Format = BufferFormat::Float;
+			Desc.ItemsPerPoint = 4;
+			Desc.DefaultValue = FLinearColor::Black;
+			Desc.AddMetadata(TEXT("FX:UAV"));
+			return Desc;
+		}
+
+		int32 FloodFillResolvePassCount(int32 Width, int32 Height)
+		{
+			const uint64 PixelCount = static_cast<uint64>(FMath::Max(Width, 1)) * static_cast<uint64>(FMath::Max(Height, 1));
+			uint64 PowerOfTwo = 1;
+			int32 LogPixels = 0;
+			while (PowerOfTwo < PixelCount && LogPixels < 63)
+			{
+				PowerOfTwo <<= 1;
+				++LogPixels;
+			}
+
+			return FMath::Clamp(LogPixels * 4 + 4, 16, 128);
+		}
+
+		template <typename ShaderType, typename ParametersType>
+		void DispatchFloodFillShader(FRHICommandListImmediate& RHI, const ParametersType& Parameters, int32 Width, int32 Height)
+		{
+			TShaderMapRef<ShaderType> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+			const FIntVector GroupSize = ComputeShader->ThreadGroupSize();
+			FComputeShaderUtils::Dispatch(
+				RHI,
+				ComputeShader,
+				Parameters,
+				FIntVector(
+					FMath::DivideAndRoundUp(Width, GroupSize.X),
+					FMath::DivideAndRoundUp(Height, GroupSize.Y),
+					1));
+		}
+
+		class FxMaterial_TGMBFloodFillData : public FxMaterial_Compute<CSH_TGMBFloodFillInit>
+		{
+			FRWBufferStructured LabelsBuffer;
+			FRWBufferStructured BoundsBuffer;
+
+		public:
+			using CmpSHPermutationDomain = typename CSH_TGMBFloodFillInit::FPermutationDomain;
+
+			FxMaterial_TGMBFloodFillData(
+				FString InOutputId,
+				const CmpSHPermutationDomain* InPermutationDomain = nullptr,
+				int InNumThreadsX = FxMaterial_Compute<CSH_TGMBFloodFillInit>::GDefaultNumThreadsXY,
+				int InNumThreadsY = FxMaterial_Compute<CSH_TGMBFloodFillInit>::GDefaultNumThreadsXY,
+				int InNumThreadsZ = 1,
+				FUnorderedAccessViewRHIRef InUnorderedAccessView = nullptr)
+				: FxMaterial_Compute<CSH_TGMBFloodFillInit>(InOutputId, InPermutationDomain, InNumThreadsX, InNumThreadsY, InNumThreadsZ, InUnorderedAccessView)
+			{
+			}
+
+			virtual std::shared_ptr<FxMaterial> Clone() override
+			{
+				return std::static_pointer_cast<FxMaterial>(std::make_shared<FxMaterial_TGMBFloodFillData>(
+					OutputId,
+					&PermutationDomain,
+					NumThreadsX,
+					NumThreadsY,
+					NumThreadsZ,
+					UnorderedAccessView));
+			}
+
+			virtual void Blit(FRHICommandListImmediate& RHI, FRHITexture* Target, const RenderMesh* MeshObj, int32 TargetId, FGraphicsPipelineStateInitializer* PSO = nullptr) override
+			{
+				BindTexturesForBlitting();
+
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_TGMB_FloodFillData);
+				SCOPED_DRAW_EVENT(RHI, TGMB_FloodFillData);
+
+				const FIntPoint TargetSize = Target->GetSizeXY();
+				const int32 Width = FMath::Max(TargetSize.X, 1);
+				const int32 Height = FMath::Max(TargetSize.Y, 1);
+				const uint32 PixelCount = static_cast<uint32>(Width * Height);
+
+				LabelsBuffer.Release();
+				BoundsBuffer.Release();
+				LabelsBuffer.Initialize(RHI, TEXT("TGMBFloodFillLabels"), sizeof(uint32), PixelCount);
+				BoundsBuffer.Initialize(RHI, TEXT("TGMBFloodFillBounds"), sizeof(uint32), PixelCount * 4);
+
+				FUnorderedAccessViewRHIRef RenderTargetUAV = UnorderedAccessView;
+				if (!RenderTargetUAV)
+				{
+					RenderTargetUAV = RHI.CreateUnorderedAccessView(Target, FRHIViewDesc::CreateTextureUAV().SetDimensionFromTexture(Target));
+				}
+
+				const FIntVector4 PassDimensions(Width, Height, 0, 0);
+
+				CSH_TGMBFloodFillInit::FParameters InitParams = Params;
+				InitParams.Dimensions = PassDimensions;
+				InitParams.Result = RenderTargetUAV;
+				InitParams.InitLabels = LabelsBuffer.UAV;
+				InitParams.InitBounds = BoundsBuffer.UAV;
+
+				RHI.Transition(FRHITransitionInfo(Target, ERHIAccess::Unknown, ERHIAccess::UAVMask));
+				DispatchFloodFillShader<CSH_TGMBFloodFillInit>(RHI, InitParams, Width, Height);
+				RHI.Transition(FRHITransitionInfo(LabelsBuffer.UAV, ERHIAccess::UAVMask, ERHIAccess::UAVMask));
+				RHI.Transition(FRHITransitionInfo(BoundsBuffer.UAV, ERHIAccess::UAVMask, ERHIAccess::UAVMask));
+
+				CSH_TGMBFloodFillUnion::FParameters UnionParams;
+				UnionParams.Connectivity = InitParams.Connectivity;
+				UnionParams.Dimensions = PassDimensions;
+				UnionParams.UnionLabels = LabelsBuffer.UAV;
+
+				CSH_TGMBFloodFillCompress::FParameters CompressParams;
+				CompressParams.Dimensions = PassDimensions;
+				CompressParams.CompressLabels = LabelsBuffer.UAV;
+
+				const int32 ResolvePasses = FloodFillResolvePassCount(Width, Height);
+				for (int32 PassIndex = 0; PassIndex < ResolvePasses; ++PassIndex)
+				{
+					DispatchFloodFillShader<CSH_TGMBFloodFillUnion>(RHI, UnionParams, Width, Height);
+					RHI.Transition(FRHITransitionInfo(LabelsBuffer.UAV, ERHIAccess::UAVMask, ERHIAccess::UAVMask));
+
+					DispatchFloodFillShader<CSH_TGMBFloodFillCompress>(RHI, CompressParams, Width, Height);
+					RHI.Transition(FRHITransitionInfo(LabelsBuffer.UAV, ERHIAccess::UAVMask, ERHIAccess::UAVMask));
+				}
+
+				CSH_TGMBFloodFillResetBounds::FParameters ResetBoundsParams;
+				ResetBoundsParams.Dimensions = PassDimensions;
+				ResetBoundsParams.ResetBounds = BoundsBuffer.UAV;
+				DispatchFloodFillShader<CSH_TGMBFloodFillResetBounds>(RHI, ResetBoundsParams, Width, Height);
+				RHI.Transition(FRHITransitionInfo(BoundsBuffer.UAV, ERHIAccess::UAVMask, ERHIAccess::UAVMask));
+
+				RHI.Transition(FRHITransitionInfo(LabelsBuffer.UAV, ERHIAccess::UAVMask, ERHIAccess::SRVMask));
+
+				CSH_TGMBFloodFillReduceBounds::FParameters ReduceBoundsParams;
+				ReduceBoundsParams.Dimensions = PassDimensions;
+				ReduceBoundsParams.Labels = LabelsBuffer.SRV;
+				ReduceBoundsParams.ReduceBounds = BoundsBuffer.UAV;
+				DispatchFloodFillShader<CSH_TGMBFloodFillReduceBounds>(RHI, ReduceBoundsParams, Width, Height);
+				RHI.Transition(FRHITransitionInfo(BoundsBuffer.UAV, ERHIAccess::UAVMask, ERHIAccess::SRVMask));
+
+				CSH_TGMBFloodFillEmitData::FParameters EmitDataParams;
+				EmitDataParams.Dimensions = PassDimensions;
+				EmitDataParams.FinalLabels = LabelsBuffer.SRV;
+				EmitDataParams.FinalBounds = BoundsBuffer.SRV;
+				EmitDataParams.Result = RenderTargetUAV;
+				DispatchFloodFillShader<CSH_TGMBFloodFillEmitData>(RHI, EmitDataParams, Width, Height);
+
+				RHI.Transition(FRHITransitionInfo(Target, ERHIAccess::UAVMask, ERHIAccess::SRVMask));
+			}
+		};
+
 		TiledBlobPtr CombineIfNeeded(MixUpdateCyclePtr Cycle, int32 TargetId, TiledBlobPtr Source)
 		{
 			if (!Source)
@@ -94,6 +359,32 @@ namespace UE::TextureGraphMaterialBridge
 	}
 
 	
+	TiledBlobPtr FDesignerTransforms::CreateFloodFillData(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 Connectivity, float Threshold)
+	{
+		if (!Source)
+		{
+			return TextureHelper::GetBlack();
+		}
+
+		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source);
+		BufferDescriptor Desc = BuildFloodFillDataDesc(DesiredDesc, Source);
+
+		CSH_TGMBFloodFillInit::FPermutationDomain PermutationVector;
+		std::shared_ptr<FxMaterial_TGMBFloodFillData> FxMat = std::make_shared<FxMaterial_TGMBFloodFillData>(TEXT("Result"), &PermutationVector, Desc.Width, Desc.Height, 1);
+		RenderMaterial_FXPtr Transform = std::make_shared<RenderMaterial_FX>(TEXT("TGMB_FloodFillData"), std::static_pointer_cast<FxMaterial>(FxMat));
+		JobUPtr RenderJob = std::make_unique<Job>(Cycle->GetMix(), TargetId, std::static_pointer_cast<BlobTransform>(Transform));
+		RenderJob
+			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
+			->AddArg(ARG_FLOAT(Threshold, "Threshold"))
+			->AddArg(ARG_INT(Connectivity, "Connectivity"));
+
+		RenderJob->SetTiled(false);
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB Flood Fill Data"), &Desc, 1, 1);
+		Result->MakeSingleBlob();
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
 	TiledBlobPtr FDesignerTransforms::CreateFloodFillToRandomGrayscale(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 Seed) {
 		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source ? Source : TextureHelper::GetBlack());
 		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, CombinedSource);
@@ -147,6 +438,20 @@ namespace UE::TextureGraphMaterialBridge
 			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
 			;
 		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB FloodFillToPosition"), &Desc);
+		Cycle->AddJob(TargetId, std::move(RenderJob));
+		return Result;
+	}
+
+	TiledBlobPtr FDesignerTransforms::CreateFloodFillToBBoxSize(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 OutputMode) {
+		TiledBlobPtr CombinedSource = CombineIfNeeded(Cycle, TargetId, Source ? Source : TextureHelper::GetBlack());
+		BufferDescriptor Desc = BuildOutputDesc(DesiredDesc, CombinedSource);
+		FTileInfo TileInfo;
+		JobUPtr RenderJob = CreateShaderJob<FSH_TGMBFloodFillToBBoxSize>(Cycle, TargetId, TEXT("TGMB_FloodFillToBBoxSize"));
+		RenderJob->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
+			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
+			->AddArg(ARG_INT(OutputMode, "OutputMode"))
+			;
+		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB FloodFillToBBoxSize"), &Desc);
 		Cycle->AddJob(TargetId, std::move(RenderJob));
 		return Result;
 	}
@@ -638,7 +943,7 @@ TiledBlobPtr FDesignerTransforms::CreateTileGenerator(
 		return Result;
 	}
 
-	TiledBlobPtr FDesignerTransforms::CreateFloodFill(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 OutputMode, int32 Connectivity, int32 Seed, float Threshold, float GradientAngle)
+	TiledBlobPtr FDesignerTransforms::CreateFloodFill(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 OutputMode, int32 Seed, float GradientAngle)
 	{
 		if (!Source)
 		{
@@ -654,9 +959,7 @@ TiledBlobPtr FDesignerTransforms::CreateTileGenerator(
 			->AddArg(ARG_TILEINFO(TileInfo, "TileInfo"))
 			->AddArg(ARG_BLOB(CombinedSource, "SourceTexture"))
 			->AddArg(ARG_INT(OutputMode, "OutputMode"))
-			->AddArg(ARG_INT(Connectivity, "Connectivity"))
 			->AddArg(ARG_INT(Seed, "Seed"))
-			->AddArg(ARG_FLOAT(Threshold, "Threshold"))
 			->AddArg(ARG_FLOAT(GradientAngle, "GradientAngle"));
 
 		TiledBlobPtr Result = RenderJob->InitResult(TEXT("TGMB Flood Fill"), &Desc);

@@ -65,6 +65,20 @@ public:
 	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
 };
 
+class FSH_TGMBFloodFillToBBoxSize : public FSH_Base {
+public:
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBFloodFillToBBoxSize, UE_API);
+	SHADER_USE_PARAMETER_STRUCT(FSH_TGMBFloodFillToBBoxSize, FSH_Base);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FTileInfo, TileInfo)
+		SHADER_PARAMETER_STRUCT(FStandardSamplerStates, SamplerStates)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+		SHADER_PARAMETER(int32, OutputMode)
+	END_SHADER_PARAMETER_STRUCT()
+	TEXTURE_ENGINE_DEFAULT_PERMUTATION;
+	TEXTUREGRAPH_ENGINE_DEFAULT_COMPILATION_ENV;
+};
+
 class FSH_TGMBFloodFillMapper : public FSH_Base {
 public:
 	DECLARE_EXPORTED_GLOBAL_SHADER(FSH_TGMBFloodFillMapper, UE_API);
@@ -630,10 +644,12 @@ namespace UE::TextureGraphMaterialBridge
 	class FDesignerTransforms
 	{
 	public:
-				static TiledBlobPtr CreateFloodFillToRandomGrayscale(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 Seed);
+		static TiledBlobPtr CreateFloodFillData(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 Connectivity, float Threshold);
+		static TiledBlobPtr CreateFloodFillToRandomGrayscale(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 Seed);
 		static TiledBlobPtr CreateFloodFillToRandomColor(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 Seed);
 		static TiledBlobPtr CreateFloodFillToGradient(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float GradientAngle, float RotationJitter, int32 Seed);
 		static TiledBlobPtr CreateFloodFillToPosition(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source);
+		static TiledBlobPtr CreateFloodFillToBBoxSize(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 OutputMode);
 		static TiledBlobPtr CreateFloodFillMapper(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr MaskTexture);
 		static TiledBlobPtr CreateMultiDirectionalWarp(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr MaskTexture, float Intensity, float Rotation, float GradientAngle);
 		static TiledBlobPtr CreateNonUniformDirectionalWarp(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr MaskTexture, float Intensity, float GradientAngle);
@@ -655,7 +671,7 @@ static TiledBlobPtr CreateTileGenerator(MixUpdateCyclePtr Cycle, BufferDescripto
 		static TiledBlobPtr CreateTileSampler(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr Mask, TiledBlobPtr ScaleMap, TiledBlobPtr RotationMap, int32 Seed, float CountX, float CountY, float Scale, float Spacing, float Rotation, float PositionJitter, float SizeJitter, float RotationJitter);
 		static TiledBlobPtr CreateGradientMap(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, const FGradientMapSettings& Settings);
 		static TiledBlobPtr CreateNormalCombine(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr BaseNormal, TiledBlobPtr DetailNormal, TiledBlobPtr Mask, int32 BlendMode, float DetailStrength, bool bInvertGreen);
-		static TiledBlobPtr CreateFloodFill(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 OutputMode, int32 Connectivity, int32 Seed, float Threshold, float GradientAngle);
+		static TiledBlobPtr CreateFloodFill(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, int32 OutputMode, int32 Seed, float GradientAngle);
 		static TiledBlobPtr CreateSlopeBlur(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, TiledBlobPtr Slope, float Intensity, int32 Samples, int32 Mode, bool bInvertSlope);
 		static TiledBlobPtr CreateBevel(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Distance, float Smoothness, int32 Mode, float Threshold);
 		static TiledBlobPtr CreateHBAO(MixUpdateCyclePtr Cycle, BufferDescriptor DesiredDesc, int32 TargetId, TiledBlobPtr Source, float Radius, int32 Samples, float HeightScale, float Bias, float Contrast, bool bInvert);

@@ -62,6 +62,14 @@ enum class ETGMBFloodFillConnectivity : uint8
 };
 
 UENUM(BlueprintType)
+enum class ETGMBFloodFillBBoxSizeOutput : uint8
+{
+	Max = 0 UMETA(DisplayName = "Max (X, Y)"),
+	X = 1 UMETA(DisplayName = "X"),
+	Y = 2 UMETA(DisplayName = "Y")
+};
+
+UENUM(BlueprintType)
 enum class ETGMBSlopeBlurMode : uint8
 {
 	Blur = 0 UMETA(DisplayName = "Blur"),
@@ -151,6 +159,19 @@ public:
 	virtual FTG_Name GetDefaultName() const override { return TEXT("Flood Fill to Position"); }
 	virtual FText GetTooltipText() const override { return FText::FromString(TEXT("Converts flood fill data to position.")); }
 	UPROPERTY(meta = (TGType = "TG_Input", PinDisplayName = "Flood Fill Data")) FTG_Texture Source;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "")) FTG_Texture Output;
+};
+
+UCLASS(MinimalAPI)
+class UTG_Expression_TGMB_FloodFillToBBoxSize : public UTG_Expression {
+	GENERATED_BODY()
+public:
+	TG_DECLARE_EXPRESSION(TG_Category::Filter);
+	virtual void Evaluate(FTG_EvaluationContext* InContext) override;
+	virtual FTG_Name GetDefaultName() const override { return TEXT("Flood Fill to BBox Size"); }
+	virtual FText GetTooltipText() const override { return FText::FromString(TEXT("Generates per-cell bounding box size from flood fill data.")); }
+	UPROPERTY(meta = (TGType = "TG_Input", PinDisplayName = "Flood Fill Data")) FTG_Texture Source;
+	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Setting")) ETGMBFloodFillBBoxSizeOutput OutputMode = ETGMBFloodFillBBoxSizeOutput::Max;
 	UPROPERTY(EditAnywhere, Category = NoCategory, meta = (TGType = "TG_Output", PinDisplayName = "")) FTG_Texture Output;
 };
 
