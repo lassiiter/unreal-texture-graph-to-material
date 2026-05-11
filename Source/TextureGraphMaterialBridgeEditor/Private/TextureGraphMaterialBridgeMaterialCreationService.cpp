@@ -4,6 +4,7 @@
 #include "MaterialExpressionTextureGraphSample.h"
 #include "TextureGraphMaterialBridgeExpressionUtils.h"
 #include "Async/Async.h"
+#include "Export/TextureExporter.h"
 #include "Factories/MaterialFactoryNew.h"
 #include "FileHelpers.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -15,9 +16,7 @@
 #include "Model/Mix/MixSettings.h"
 #include "Model/Mix/ViewportSettings.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-#include "TG_HelperFunctions.h"
 #include "TextureGraph.h"
-#include "UObject/StrongObjectPtr.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #include "Editor.h"
@@ -557,82 +556,26 @@ void FTextureGraphMaterialBridgeMaterialCreationService::CreateLinkedMaterials(T
 			continue;
 		}
 
-		if (ExportSource.bExportSourceDirectly)
-		{
-			FExportSettings ExportSettings;
-			const FString SavedTextureGraphPath = TextureGraph->GetPathName();
+		FExportSettings ExportSettings;
+		const FString SavedTextureGraphPath = TextureGraph->GetPathName();
 
-			UE_LOG(
-				LogTextureGraphMaterialBridgeMaterialCreationService,
-				Log,
-				TEXT("TextureGraphMaterialBridge exporting '%s' directly using %s '%s' before linked material creation."),
-				*SavedTextureGraphPath,
-				ExportSource.SourceDescription,
-				*ExportSource.TextureGraph->GetPathName());
+		UE_LOG(
+			LogTextureGraphMaterialBridgeMaterialCreationService,
+			Verbose,
+			TEXT("TextureGraphMaterialBridge exporting '%s' directly using %s '%s' before linked material creation."),
+			*SavedTextureGraphPath,
+			ExportSource.SourceDescription,
+			*ExportSource.TextureGraph->GetPathName());
 
-			FTG_HelperFunctions::ExportAsync(ExportSource.TextureGraph, TEXT(""), TEXT(""), ExportSettings, false, true, false, true)
-				.then(
-					[TextureGraph = TWeakObjectPtr<UTextureGraphBase>(TextureGraph)](int32 NumExports) mutable
+		UE::TextureGraphMaterialBridgeEditor::ExportTextureGraphDirectAsync(ExportSource.TextureGraph, ExportSettings)
+			.then(
+				[TextureGraph = TWeakObjectPtr<UTextureGraphBase>(TextureGraph)](int32 NumExports) mutable
 			{
 				AsyncTask(
 					ENamedThreads::GameThread,
 					[TextureGraph = MoveTemp(TextureGraph),
 					 NumExports]() mutable
 				{
-					if (!TextureGraph.IsValid())
-					{
-						return;
-					}
-
-					UE::TextureGraphMaterialBridgeEditor::HandleCreateLinkedMaterialAfterExport(TextureGraph.Get(), NumExports);
-				});
-
-				return NumExports;
-			});
-
-			continue;
-		}
-
-		UTextureGraphBase* PreparedExportTextureGraph = Cast<UTextureGraphInstance>(ExportSource.TextureGraph)
-			? UE::TextureGraphMaterialBridgeEditor::CreatePreparedExportTextureGraph(ExportSource.TextureGraph)
-			: UE::TextureGraphMaterialBridgeEditor::CreatePreparedExportTextureGraphInstance(ExportSource.TextureGraph);
-		UE::TextureGraphMaterialBridgeEditor::CleanupExportTextureGraph(ExportSource.TextureGraph, ExportSource.bRequiresCleanup);
-		if (!PreparedExportTextureGraph)
-		{
-			const FText WarningMessage = FText::Format(
-				NSLOCTEXT("TextureGraphMaterialBridge", "CreateLinkedMaterialPrepareExportFailed", "Texture Graph Material Bridge could not prepare an export graph for '{0}'."),
-				FText::FromString(TextureGraph->GetName()));
-			UE::TextureGraphMaterialBridgeEditor::NotifyWarning(WarningMessage);
-			continue;
-		}
-
-		FExportSettings ExportSettings;
-		TStrongObjectPtr<UTextureGraphBase> ExportTextureGraph(PreparedExportTextureGraph);
-		const FString SavedTextureGraphPath = TextureGraph->GetPathName();
-
-		UE_LOG(
-			LogTextureGraphMaterialBridgeMaterialCreationService,
-			Verbose,
-			TEXT("TextureGraphMaterialBridge exporting '%s' using prepared source from %s '%s' before linked material creation."),
-			*SavedTextureGraphPath,
-			ExportSource.SourceDescription,
-			*ExportTextureGraph->GetPathName());
-
-		UE::TextureGraphMaterialBridgeEditor::ExportPreparedTextureGraphAsync(ExportTextureGraph.Get(), ExportSettings)
-			.then(
-				[ExportTextureGraph = MoveTemp(ExportTextureGraph),
-				 TextureGraph = TWeakObjectPtr<UTextureGraphBase>(TextureGraph),
-				 bRequiresCleanup = true](int32 NumExports) mutable
-			{
-				AsyncTask(
-					ENamedThreads::GameThread,
-					[ExportTextureGraph = MoveTemp(ExportTextureGraph),
-					 TextureGraph = MoveTemp(TextureGraph),
-					 bRequiresCleanup,
-					 NumExports]() mutable
-				{
-					UE::TextureGraphMaterialBridgeEditor::CleanupExportTextureGraph(ExportTextureGraph.Get(), bRequiresCleanup);
-
 					if (!TextureGraph.IsValid())
 					{
 						return;

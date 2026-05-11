@@ -10,6 +10,7 @@
 #include "Async/Async.h"
 #include "Engine/Texture.h"
 #include "Editor.h"
+#include "Export/TextureExporter.h"
 #include "IMaterialEditor.h"
 #include "MaterialEditorUtilities.h"
 #include "MaterialEditingLibrary.h"
@@ -18,11 +19,9 @@
 #include "MaterialGraph/MaterialGraph.h"
 #include "Materials/Material.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-#include "TG_HelperFunctions.h"
 #include "TextureGraph.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
-#include "UObject/StrongObjectPtr.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextureGraphMaterialBridgeSaveService, Log, All);
 
@@ -113,112 +112,33 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 		return;
 	}
 
-	if (ExportSource.bExportSourceDirectly)
-	{
-		FExportSettings ExportSettings;
-		FString SavedTextureGraphPath = SavedTextureGraph->GetPathName();
-
-		UE_LOG(
-			LogTextureGraphMaterialBridgeSaveService,
-			Log,
-			TEXT("TextureGraphMaterialBridge exporting '%s' directly using %s '%s'. ReferencingMaterials=%d IndexedMaterialInstances=%d."),
-			*SavedTextureGraphPath,
-			ExportSource.SourceDescription,
-			*ExportSource.TextureGraph->GetPathName(),
-			ReferencingMaterialPaths.Num(),
-			BoundMaterialInstancePaths.Num());
-
-		FTG_HelperFunctions::ExportAsync(ExportSource.TextureGraph, TEXT(""), TEXT(""), ExportSettings, false, true, false, true)
-			.then(
-				[MaterialPaths = MoveTemp(ReferencingMaterialPaths),
-				 BoundMaterialInstancePaths = MoveTemp(BoundMaterialInstancePaths),
-				 SavedTextureGraphPath,
-				 SavedTextureGraph = TWeakObjectPtr<UTextureGraphBase>(SavedTextureGraph)](int32 NumExports) mutable
-		{
-			AsyncTask(
-				ENamedThreads::GameThread,
-				[MaterialPaths = MoveTemp(MaterialPaths),
-				 BoundMaterialInstancePaths = MoveTemp(BoundMaterialInstancePaths),
-				 SavedTextureGraphPath = MoveTemp(SavedTextureGraphPath),
-				 SavedTextureGraph = MoveTemp(SavedTextureGraph),
-				 NumExports]() mutable
-			{
-				if (NumExports > 0)
-				{
-					UE_LOG(
-						LogTextureGraphMaterialBridgeSaveService,
-						Log,
-						TEXT("TextureGraphMaterialBridge exported %d texture(s) for '%s'; recompiling %d referencing material(s), refreshing %d indexed Material Instance(s)."),
-						NumExports,
-						*SavedTextureGraphPath,
-						MaterialPaths.Num(),
-						BoundMaterialInstancePaths.Num());
-
-					RecompileMaterials(MaterialPaths, SavedTextureGraph.Get());
-				}
-				else
-				{
-					UE_LOG(
-						LogTextureGraphMaterialBridgeSaveService,
-						Warning,
-						TEXT("TextureGraphMaterialBridge save-triggered export produced no textures for '%s'. ReferencingMaterials=%d IndexedMaterialInstances=%d."),
-						*SavedTextureGraphPath,
-						MaterialPaths.Num(),
-						BoundMaterialInstancePaths.Num());
-				}
-
-				RefreshMaterialInstanceBindings(SavedTextureGraph.Get(), BoundMaterialInstancePaths);
-			});
-
-			return NumExports;
-		});
-
-		return;
-	}
-
-	UTextureGraphBase* PreparedExportTextureGraph = UE::TextureGraphMaterialBridgeEditor::CreatePreparedExportTextureGraph(ExportSource.TextureGraph);
-	UE::TextureGraphMaterialBridgeEditor::CleanupExportTextureGraph(ExportSource.TextureGraph, ExportSource.bRequiresCleanup);
-	if (!PreparedExportTextureGraph)
-	{
-		UE_LOG(LogTextureGraphMaterialBridgeSaveService, Warning, TEXT("TextureGraphMaterialBridge could not prepare an export graph for '%s'."), *SavedTextureGraph->GetPathName());
-		RefreshMaterialInstanceBindings(SavedTextureGraph, BoundMaterialInstancePaths);
-		return;
-	}
-
 	FExportSettings ExportSettings;
-	TStrongObjectPtr<UTextureGraphBase> ExportTextureGraph(PreparedExportTextureGraph);
 
 	UE_LOG(
 		LogTextureGraphMaterialBridgeSaveService,
 		Log,
-		TEXT("TextureGraphMaterialBridge exporting '%s' using %s '%s'. ReferencingMaterials=%d IndexedMaterialInstances=%d."),
+		TEXT("TextureGraphMaterialBridge exporting '%s' directly using %s '%s'. ReferencingMaterials=%d IndexedMaterialInstances=%d."),
 		*SavedTextureGraph->GetPathName(),
 		ExportSource.SourceDescription,
-		*ExportTextureGraph->GetPathName(),
+		*ExportSource.TextureGraph->GetPathName(),
 		ReferencingMaterialPaths.Num(),
 		BoundMaterialInstancePaths.Num());
 
-	UE::TextureGraphMaterialBridgeEditor::ExportPreparedTextureGraphAsync(ExportTextureGraph.Get(), ExportSettings)
+	UE::TextureGraphMaterialBridgeEditor::ExportTextureGraphDirectAsync(ExportSource.TextureGraph, ExportSettings)
 		.then(
 			[MaterialPaths = MoveTemp(ReferencingMaterialPaths),
 			 BoundMaterialInstancePaths = MoveTemp(BoundMaterialInstancePaths),
-			 ExportTextureGraph = MoveTemp(ExportTextureGraph),
 			 SavedTextureGraphPath = SavedTextureGraph->GetPathName(),
-			 SavedTextureGraph = TWeakObjectPtr<UTextureGraphBase>(SavedTextureGraph),
-			 bRequiresCleanup = true](int32 NumExports) mutable
+			 SavedTextureGraph = TWeakObjectPtr<UTextureGraphBase>(SavedTextureGraph)](int32 NumExports) mutable
 		{
 			AsyncTask(
 				ENamedThreads::GameThread,
 				[MaterialPaths = MoveTemp(MaterialPaths),
 				 BoundMaterialInstancePaths = MoveTemp(BoundMaterialInstancePaths),
-				 ExportTextureGraph = MoveTemp(ExportTextureGraph),
 				 SavedTextureGraphPath = MoveTemp(SavedTextureGraphPath),
 				 SavedTextureGraph = MoveTemp(SavedTextureGraph),
-				 bRequiresCleanup,
 				 NumExports]() mutable
 			{
-				UE::TextureGraphMaterialBridgeEditor::CleanupExportTextureGraph(ExportTextureGraph.Get(), bRequiresCleanup);
-
 				if (NumExports > 0)
 				{
 					UE_LOG(

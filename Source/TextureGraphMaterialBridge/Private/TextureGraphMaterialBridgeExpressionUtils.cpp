@@ -29,6 +29,38 @@ namespace UE::TextureGraphMaterialBridge
 
 			return TextureGraph->Graph();
 		}
+
+		bool IsDefaultInstanceExportBaseName(const UTextureGraphInstance* TextureGraphInstance, const UTG_Expression_Output& OutputExpression, const FTG_OutputSettings& OutputSettings)
+		{
+			if (!TextureGraphInstance || OutputSettings.BaseName.IsNone())
+			{
+				return false;
+			}
+
+			const FName CanonicalOutputName = GetTextureGraphOutputName(OutputExpression);
+			if (OutputSettings.BaseName == CanonicalOutputName || OutputSettings.BaseName == OutputSettings.OutputName)
+			{
+				return true;
+			}
+
+			if (const UTextureGraphBase* ParentTextureGraph = TextureGraphInstance->ParentTextureGraph)
+			{
+				if (const UTG_Expression_Output* ParentOutputExpression = FindTextureGraphOutputExpression(ParentTextureGraph, CanonicalOutputName, nullptr))
+				{
+					const FTG_OutputSettings& ParentOutputSettings = ParentOutputExpression->OutputSettings;
+					return OutputSettings.BaseName == ParentOutputSettings.BaseName
+						|| OutputSettings.BaseName == ParentOutputSettings.OutputName
+						|| OutputSettings.BaseName == GetTextureGraphOutputName(*ParentOutputExpression);
+				}
+			}
+
+			return false;
+		}
+
+		FName BuildTextureGraphInstanceExportBaseName(const UTextureGraphInstance* TextureGraphInstance, FName BaseName)
+		{
+			return FName(*FString::Printf(TEXT("%s_%s"), *TextureGraphInstance->GetName(), *BaseName.ToString()));
+		}
 	}
 
 	FName GetTextureGraphOutputName(const UTG_Expression_Output& OutputExpression)
@@ -124,6 +156,19 @@ namespace UE::TextureGraphMaterialBridge
 		return FoundOutput;
 	}
 
+	FTG_OutputSettings GetEffectiveTextureGraphOutputSettings(const UTextureGraphBase* TextureGraph, const UTG_Expression_Output& OutputExpression)
+	{
+		FTG_OutputSettings EffectiveOutputSettings = OutputExpression.OutputSettings;
+
+		const UTextureGraphInstance* TextureGraphInstance = Cast<UTextureGraphInstance>(TextureGraph);
+		if (TextureGraphInstance && IsDefaultInstanceExportBaseName(TextureGraphInstance, OutputExpression, EffectiveOutputSettings))
+		{
+			EffectiveOutputSettings.BaseName = BuildTextureGraphInstanceExportBaseName(TextureGraphInstance, EffectiveOutputSettings.BaseName);
+		}
+
+		return EffectiveOutputSettings;
+	}
+
 	UTexture* ResolveTextureGraphExportedTexture(const UTextureGraphBase* TextureGraph, FName InOutputName, FString* OutError)
 	{
 		const UTG_Expression_Output* OutputExpression = FindTextureGraphOutputExpression(TextureGraph, InOutputName, OutError);
@@ -133,7 +178,7 @@ namespace UE::TextureGraphMaterialBridge
 		}
 
 		const FName CanonicalOutputName = GetTextureGraphOutputName(*OutputExpression);
-		const FTG_OutputSettings& OutputSettings = OutputExpression->OutputSettings;
+		const FTG_OutputSettings OutputSettings = GetEffectiveTextureGraphOutputSettings(TextureGraph, *OutputExpression);
 		if (!OutputSettings.bShouldExport)
 		{
 			if (OutError)

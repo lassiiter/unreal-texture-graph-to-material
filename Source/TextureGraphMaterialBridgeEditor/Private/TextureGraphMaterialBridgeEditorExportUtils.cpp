@@ -1,14 +1,20 @@
 #include "TextureGraphMaterialBridgeEditorExportUtils.h"
 
+#include "TextureGraphMaterialBridgeExpressionUtils.h"
 #include "Async/Async.h"
 #include "Export/TextureExporter.h"
+#include "Expressions/Output/TG_Expression_Output.h"
 #include "ITG_Editor.h"
 #include "Model/Mix/MixSettings.h"
+#include "TG_Graph.h"
 #include "TG_HelperFunctions.h"
+#include "TG_Node.h"
+#include "TG_Pin.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "TextureGraph.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/UObjectGlobals.h"
+#include "UObject/Package.h"
 
 #include "Editor.h"
 
@@ -79,6 +85,126 @@ namespace UE::TextureGraphMaterialBridgeEditor
 				}
 			}
 		}
+
+		UTG_Expression_Output* FindMutableTextureGraphOutputExpression(UTextureGraphBase* TextureGraph, FName InOutputName)
+		{
+			if (!TextureGraph || InOutputName.IsNone())
+			{
+				return nullptr;
+			}
+
+			UTG_Graph* Graph = TextureGraph->Graph();
+			if (!Graph)
+			{
+				return nullptr;
+			}
+
+			UTG_Expression_Output* FoundOutput = nullptr;
+			Graph->ForEachNodes([InOutputName, &FoundOutput](const UTG_Node* Node, uint32)
+			{
+				if (FoundOutput || !Node)
+				{
+					return;
+				}
+
+				if (UTG_Expression_Output* OutputExpression = Cast<UTG_Expression_Output>(Node->GetExpression()))
+				{
+					const FName CanonicalOutputName = UE::TextureGraphMaterialBridge::GetTextureGraphOutputName(*OutputExpression);
+					if (CanonicalOutputName == InOutputName || OutputExpression->GetTitleName() == InOutputName || OutputExpression->OutputSettings.OutputName == InOutputName)
+					{
+						FoundOutput = OutputExpression;
+					}
+				}
+			});
+
+			return FoundOutput;
+		}
+
+		void ApplyOutputSettingsToExpression(UTG_Expression_Output* OutputExpression, const FTG_OutputSettings& OutputSettings)
+		{
+			if (!OutputExpression)
+			{
+				return;
+			}
+
+			OutputExpression->OutputSettings = OutputSettings;
+
+			if (UTG_Node* Node = OutputExpression->GetParentNode())
+			{
+				if (UTG_Pin* SettingsPin = Node->GetPin(GET_MEMBER_NAME_CHECKED(UTG_Expression_Output, OutputSettings)))
+				{
+					SettingsPin->FromString(OutputExpression->OutputSettings.ToString());
+				}
+			}
+		}
+
+		TArray<TPair<FName, FTG_OutputSettings>> ApplyEffectiveOutputSettingsForExport(UTextureGraphBase* TextureGraph)
+		{
+			TArray<TPair<FName, FTG_OutputSettings>> OriginalOutputSettings;
+
+			if (!TextureGraph)
+			{
+				return OriginalOutputSettings;
+			}
+
+			const UTG_Graph* SourceGraph = TextureGraph->Graph();
+			if (!SourceGraph)
+			{
+				return OriginalOutputSettings;
+			}
+
+			SourceGraph->ForEachNodes([TextureGraph, &OriginalOutputSettings](const UTG_Node* Node, uint32)
+			{
+				if (!Node)
+				{
+					return;
+				}
+
+				const UTG_Expression_Output* SourceOutputExpression = Cast<UTG_Expression_Output>(Node->GetExpression());
+				if (!SourceOutputExpression)
+				{
+					return;
+				}
+
+				const FName OutputName = UE::TextureGraphMaterialBridge::GetTextureGraphOutputName(*SourceOutputExpression);
+				UTG_Expression_Output* MutableOutputExpression = FindMutableTextureGraphOutputExpression(TextureGraph, OutputName);
+				if (!MutableOutputExpression)
+				{
+					return;
+				}
+
+				const FTG_OutputSettings EffectiveOutputSettings =
+					UE::TextureGraphMaterialBridge::GetEffectiveTextureGraphOutputSettings(TextureGraph, *SourceOutputExpression);
+				if (MutableOutputExpression->OutputSettings == EffectiveOutputSettings)
+				{
+					return;
+				}
+
+				OriginalOutputSettings.Emplace(OutputName, MutableOutputExpression->OutputSettings);
+				ApplyOutputSettingsToExpression(MutableOutputExpression, EffectiveOutputSettings);
+			});
+
+			return OriginalOutputSettings;
+		}
+
+		void RestoreOutputSettingsAfterExport(UTextureGraphBase* TextureGraph, const TArray<TPair<FName, FTG_OutputSettings>>& OriginalOutputSettings)
+		{
+			for (const TPair<FName, FTG_OutputSettings>& OriginalOutputSetting : OriginalOutputSettings)
+			{
+				if (UTG_Expression_Output* OutputExpression = FindMutableTextureGraphOutputExpression(TextureGraph, OriginalOutputSetting.Key))
+				{
+					ApplyOutputSettingsToExpression(OutputExpression, OriginalOutputSetting.Value);
+				}
+			}
+		}
+
+		void RestorePackageDirtyState(UTextureGraphBase* TextureGraph, bool bWasPackageDirty)
+		{
+			if (TextureGraph && TextureGraph->GetOutermost())
+			{
+				TextureGraph->GetOutermost()->SetDirtyFlag(bWasPackageDirty);
+			}
+		}
 	}
 
 	FResolvedTextureGraphExportSource ResolveExportTextureGraph(UTextureGraphBase* SavedTextureGraph)
@@ -89,14 +215,14 @@ namespace UE::TextureGraphMaterialBridgeEditor
 			{
 				if (UTextureGraphBase* EditorTextureGraph = ResolveOpenEditorTextureGraph(AssetEditorSubsystem->FindEditorForAsset(SavedTextureGraph, false), SavedTextureGraph))
 				{
-					return { EditorTextureGraph, false, true, TEXT("open editor graph") };
+					return { EditorTextureGraph, TEXT("open editor graph") };
 				}
 
 				for (IAssetEditorInstance* EditorInstance : AssetEditorSubsystem->GetAllOpenEditors())
 				{
 					if (UTextureGraphBase* EditorTextureGraph = ResolveOpenEditorTextureGraph(EditorInstance, SavedTextureGraph))
 					{
-						return { EditorTextureGraph, false, true, TEXT("open editor graph") };
+						return { EditorTextureGraph, TEXT("open editor graph") };
 					}
 				}
 			}
@@ -104,59 +230,30 @@ namespace UE::TextureGraphMaterialBridgeEditor
 
 		if (SavedTextureGraph)
 		{
-			return { SavedTextureGraph, false, false, TEXT("saved asset graph") };
+			return { SavedTextureGraph, TEXT("saved asset graph") };
 		}
 
 		return {};
 	}
 
-	UTextureGraphBase* CreatePreparedExportTextureGraph(UTextureGraphBase* SourceTextureGraph)
+	AsyncInt ExportTextureGraphDirectAsync(UTextureGraphBase* TextureGraph, FExportSettings& ExportSettings)
 	{
-		if (!SourceTextureGraph)
+		if (!TextureGraph)
 		{
-			return nullptr;
+			return cti::make_ready_continuable<int32>(0);
 		}
 
-		UTextureGraphBase* PreparedTextureGraph = Cast<UTextureGraphBase>(
-			StaticDuplicateObject(SourceTextureGraph, GetTransientPackage(), NAME_None, RF_Standalone));
-		if (!PreparedTextureGraph)
-		{
-			return nullptr;
-		}
+		EnsureTextureGraphTargetsInitialized(TextureGraph);
 
-		PreparedTextureGraph->Initialize();
-		FTG_HelperFunctions::InitTargets(PreparedTextureGraph);
-		return PreparedTextureGraph;
-	}
-
-	UTextureGraphBase* CreatePreparedExportTextureGraphInstance(UTextureGraphBase* SourceTextureGraph)
-	{
-		if (!SourceTextureGraph)
-		{
-			return nullptr;
-		}
-
-		EnsureTextureGraphInstanceInitialized(SourceTextureGraph);
-
-		UTextureGraphInstance* PreparedTextureGraph = NewObject<UTextureGraphInstance>(GetTransientPackage(), NAME_None, RF_Standalone);
-		if (!PreparedTextureGraph)
-		{
-			return nullptr;
-		}
-
-		PreparedTextureGraph->Construct(FString());
-
-		TObjectPtr<UTextureGraphBase> ParentTextureGraph = SourceTextureGraph;
-		PreparedTextureGraph->SetParent(ParentTextureGraph);
-		PreparedTextureGraph->Initialize();
-		FTG_HelperFunctions::InitTargets(PreparedTextureGraph);
-		return PreparedTextureGraph;
-	}
-
-	AsyncInt ExportPreparedTextureGraphAsync(UTextureGraphBase* PreparedTextureGraph, FExportSettings& ExportSettings)
-	{
 		TSharedRef<FExportSettings> SessionSettings = MakeShared<FExportSettings>(ExportSettings);
-		JobBatchPtr Batch = FTG_HelperFunctions::InitExportBatch(PreparedTextureGraph, TEXT(""), TEXT(""), *SessionSettings, false, true, false, true);
+		const bool bWasPackageDirty = TextureGraph->GetOutermost() ? TextureGraph->GetOutermost()->IsDirty() : false;
+		const TArray<TPair<FName, FTG_OutputSettings>> OriginalOutputSettings = ApplyEffectiveOutputSettingsForExport(TextureGraph);
+		JobBatchPtr Batch = FTG_HelperFunctions::InitExportBatch(TextureGraph, TEXT(""), TEXT(""), *SessionSettings, false, true, false, true);
+		RestoreOutputSettingsAfterExport(TextureGraph, OriginalOutputSettings);
+		if (OriginalOutputSettings.Num() > 0)
+		{
+			RestorePackageDirtyState(TextureGraph, bWasPackageDirty);
+		}
 
 		if (!Batch)
 		{
@@ -168,26 +265,20 @@ namespace UE::TextureGraphMaterialBridgeEditor
 			return cti::make_ready_continuable<int32>(0);
 		}
 
-		return FTG_HelperFunctions::RenderAsync(PreparedTextureGraph, Batch)
-			.then([PreparedTextureGraph, SessionSettings](bool)
+		return FTG_HelperFunctions::RenderAsync(TextureGraph, Batch)
+			.then([TextureGraph, SessionSettings](bool)
 			{
-				return TextureExporter::ExportAsUAsset(PreparedTextureGraph, SessionSettings, TEXT(""));
+				return TextureExporter::ExportAsUAsset(TextureGraph, SessionSettings, TEXT(""));
+			})
+			.then([TextureGraph](int32 NumExports)
+			{
+				if (IsValid(TextureGraph))
+				{
+					TextureGraph->InvalidateAll();
+				}
+
+				return NumExports;
 			});
-	}
-
-	void CleanupExportTextureGraph(UTextureGraphBase* TextureGraph, bool bRequiresCleanup)
-	{
-		if (!TextureGraph || !bRequiresCleanup)
-		{
-			return;
-		}
-
-		if (UMixSettings* Settings = TextureGraph->GetSettings())
-		{
-			Settings->FreeTargets();
-		}
-
-		TextureGraph->ClearFlags(RF_Standalone);
 	}
 
 	void EnsureTextureGraphTargetsInitialized(UTextureGraphBase* TextureGraph)
