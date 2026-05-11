@@ -29,6 +29,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureGraphMaterialBridgeSaveService, Log, All);
 void FTextureGraphMaterialBridgeSaveService::Startup()
 {
 	PackageSavedHandle = UPackage::PackageSavedWithContextEvent.AddRaw(this, &FTextureGraphMaterialBridgeSaveService::HandlePackageSaved);
+	UE_LOG(LogTextureGraphMaterialBridgeSaveService, Verbose, TEXT("TextureGraphMaterialBridge save service registered PackageSavedWithContext handler."));
 }
 
 void FTextureGraphMaterialBridgeSaveService::Shutdown()
@@ -42,7 +43,7 @@ void FTextureGraphMaterialBridgeSaveService::Shutdown()
 
 void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& PackageFilename, UPackage* Package, FObjectPostSaveContext ObjectSaveContext)
 {
-	if (!Package || ObjectSaveContext.IsProceduralSave() || ObjectSaveContext.IsFromAutoSave())
+	if (!Package)
 	{
 		return;
 	}
@@ -50,6 +51,26 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 	UTextureGraphBase* SavedTextureGraph = Cast<UTextureGraphBase>(Package->FindAssetInPackage());
 	if (!SavedTextureGraph)
 	{
+		return;
+	}
+
+	UE_LOG(
+		LogTextureGraphMaterialBridgeSaveService,
+		Verbose,
+		TEXT("Texture Graph package saved. Graph='%s' Package='%s' File='%s' Procedural=%s AutoSave=%s"),
+		*SavedTextureGraph->GetPathName(),
+		*Package->GetName(),
+		*PackageFilename,
+		ObjectSaveContext.IsProceduralSave() ? TEXT("true") : TEXT("false"),
+		ObjectSaveContext.IsFromAutoSave() ? TEXT("true") : TEXT("false"));
+
+	if (ObjectSaveContext.IsProceduralSave() || ObjectSaveContext.IsFromAutoSave())
+	{
+		UE_LOG(
+			LogTextureGraphMaterialBridgeSaveService,
+			Verbose,
+			TEXT("Ignoring Texture Graph save for '%s' because it is procedural or autosave."),
+			*SavedTextureGraph->GetPathName());
 		return;
 	}
 
@@ -61,16 +82,25 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 	{
 		BoundMaterialInstancePaths = EditorModule->GetMaterialInstanceBindingService().FindBoundMaterialInstancePaths(SavedTextureGraph);
 	}
+	else
+	{
+		UE_LOG(
+			LogTextureGraphMaterialBridgeSaveService,
+			Warning,
+			TEXT("Could not inspect bound Material Instances because TextureGraphMaterialBridgeEditor module was not available."));
+	}
+
+	UE_LOG(
+		LogTextureGraphMaterialBridgeSaveService,
+		Log,
+		TEXT("TextureGraphMaterialBridge save candidates for '%s': ReferencingMaterials=%d, IndexedMaterialInstances=%d."),
+		*SavedTextureGraph->GetPathName(),
+		ReferencingMaterialPaths.Num(),
+		BoundMaterialInstancePaths.Num());
 
 	if (ReferencingMaterialPaths.IsEmpty() && BoundMaterialInstancePaths.IsEmpty())
 	{
-		UE_LOG(LogTextureGraphMaterialBridgeSaveService, Verbose, TEXT("TextureGraphMaterialBridge skipped refresh for '%s' because no referencing materials or bound material instances were found."), *SavedTextureGraph->GetPathName());
-		return;
-	}
-
-	if (ReferencingMaterialPaths.IsEmpty())
-	{
-		RefreshMaterialInstanceBindings(SavedTextureGraph, BoundMaterialInstancePaths);
+		UE_LOG(LogTextureGraphMaterialBridgeSaveService, Verbose, TEXT("TextureGraphMaterialBridge skipped export/refresh for '%s' because no referencing materials or indexed Material Instances were found."), *SavedTextureGraph->GetPathName());
 		return;
 	}
 
@@ -91,10 +121,12 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 		UE_LOG(
 			LogTextureGraphMaterialBridgeSaveService,
 			Log,
-			TEXT("TextureGraphMaterialBridge exporting '%s' directly using %s '%s'."),
+			TEXT("TextureGraphMaterialBridge exporting '%s' directly using %s '%s'. ReferencingMaterials=%d IndexedMaterialInstances=%d."),
 			*SavedTextureGraphPath,
 			ExportSource.SourceDescription,
-			*ExportSource.TextureGraph->GetPathName());
+			*ExportSource.TextureGraph->GetPathName(),
+			ReferencingMaterialPaths.Num(),
+			BoundMaterialInstancePaths.Num());
 
 		FTG_HelperFunctions::ExportAsync(ExportSource.TextureGraph, TEXT(""), TEXT(""), ExportSettings, false, true, false, true)
 			.then(
@@ -115,11 +147,12 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 				{
 					UE_LOG(
 						LogTextureGraphMaterialBridgeSaveService,
-						Verbose,
-						TEXT("TextureGraphMaterialBridge exported %d texture(s) for '%s'; recompiling %d referencing material(s)."),
+						Log,
+						TEXT("TextureGraphMaterialBridge exported %d texture(s) for '%s'; recompiling %d referencing material(s), refreshing %d indexed Material Instance(s)."),
 						NumExports,
 						*SavedTextureGraphPath,
-						MaterialPaths.Num());
+						MaterialPaths.Num(),
+						BoundMaterialInstancePaths.Num());
 
 					RecompileMaterials(MaterialPaths, SavedTextureGraph.Get());
 				}
@@ -128,8 +161,10 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 					UE_LOG(
 						LogTextureGraphMaterialBridgeSaveService,
 						Warning,
-						TEXT("TextureGraphMaterialBridge skipped material recompilation for '%s' because the save-triggered export produced no textures."),
-						*SavedTextureGraphPath);
+						TEXT("TextureGraphMaterialBridge save-triggered export produced no textures for '%s'. ReferencingMaterials=%d IndexedMaterialInstances=%d."),
+						*SavedTextureGraphPath,
+						MaterialPaths.Num(),
+						BoundMaterialInstancePaths.Num());
 				}
 
 				RefreshMaterialInstanceBindings(SavedTextureGraph.Get(), BoundMaterialInstancePaths);
@@ -155,11 +190,13 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 
 	UE_LOG(
 		LogTextureGraphMaterialBridgeSaveService,
-		Verbose,
-		TEXT("TextureGraphMaterialBridge exporting '%s' using %s '%s'."),
+		Log,
+		TEXT("TextureGraphMaterialBridge exporting '%s' using %s '%s'. ReferencingMaterials=%d IndexedMaterialInstances=%d."),
 		*SavedTextureGraph->GetPathName(),
 		ExportSource.SourceDescription,
-		*ExportTextureGraph->GetPathName());
+		*ExportTextureGraph->GetPathName(),
+		ReferencingMaterialPaths.Num(),
+		BoundMaterialInstancePaths.Num());
 
 	UE::TextureGraphMaterialBridgeEditor::ExportPreparedTextureGraphAsync(ExportTextureGraph.Get(), ExportSettings)
 		.then(
@@ -186,11 +223,12 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 				{
 					UE_LOG(
 						LogTextureGraphMaterialBridgeSaveService,
-						Verbose,
-						TEXT("TextureGraphMaterialBridge exported %d texture(s) for '%s'; recompiling %d referencing material(s)."),
+						Log,
+						TEXT("TextureGraphMaterialBridge exported %d texture(s) for '%s'; recompiling %d referencing material(s), refreshing %d indexed Material Instance(s)."),
 						NumExports,
 						*SavedTextureGraphPath,
-						MaterialPaths.Num());
+						MaterialPaths.Num(),
+						BoundMaterialInstancePaths.Num());
 
 					RecompileMaterials(MaterialPaths, SavedTextureGraph.Get());
 				}
@@ -199,8 +237,10 @@ void FTextureGraphMaterialBridgeSaveService::HandlePackageSaved(const FString& P
 					UE_LOG(
 						LogTextureGraphMaterialBridgeSaveService,
 						Warning,
-						TEXT("TextureGraphMaterialBridge skipped material recompilation for '%s' because the save-triggered export produced no textures."),
-						*SavedTextureGraphPath);
+						TEXT("TextureGraphMaterialBridge save-triggered export produced no textures for '%s'. ReferencingMaterials=%d IndexedMaterialInstances=%d."),
+						*SavedTextureGraphPath,
+						MaterialPaths.Num(),
+						BoundMaterialInstancePaths.Num());
 				}
 
 				RefreshMaterialInstanceBindings(SavedTextureGraph.Get(), BoundMaterialInstancePaths);

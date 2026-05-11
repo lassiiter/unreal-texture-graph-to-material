@@ -3,8 +3,6 @@
 #include "TextureGraphMaterialBridgeExpressionUtils.h"
 #include "TextureGraphMaterialBridgeMaterialInstanceBindings.h"
 #include "AssetRegistry/AssetData.h"
-#include "AssetRegistry/IAssetRegistry.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "ContentBrowserModule.h"
 #include "Editor.h"
 #include "Framework/Application/SlateApplication.h"
@@ -24,6 +22,8 @@
 #include "Styling/AppStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "TextureGraph.h"
+#include "UObject/MetaData.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
@@ -45,6 +45,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureGraphMaterialBridgeMaterialInstanceBindings
 
 namespace
 {
+	const FName BoundMaterialInstancesMetadataKey(TEXT("TextureGraphMaterialBridge.BoundMaterialInstances"));
+
 	bool MatchesParameterInfo(const FMaterialParameterInfo& A, const FMaterialParameterInfo& B)
 	{
 		return A.Name == B.Name && A.Association == B.Association && A.Index == B.Index;
@@ -134,6 +136,87 @@ namespace
 		}
 
 		return true;
+	}
+
+	void SortSoftObjectPaths(TArray<FSoftObjectPath>& Paths)
+	{
+		Paths.Sort([](const FSoftObjectPath& A, const FSoftObjectPath& B)
+		{
+			return A.ToString() < B.ToString();
+		});
+	}
+
+	void AddUniqueSoftObjectPath(TArray<FSoftObjectPath>& Paths, const FSoftObjectPath& Path)
+	{
+		if (!Path.IsNull())
+		{
+			Paths.AddUnique(Path);
+		}
+	}
+
+	TArray<FSoftObjectPath> ParseIndexedMaterialInstancePaths(const FString& Value)
+	{
+		TArray<FSoftObjectPath> Paths;
+		TArray<FString> Lines;
+		Value.ParseIntoArrayLines(Lines, true);
+
+		for (FString Line : Lines)
+		{
+			Line.TrimStartAndEndInline();
+			if (!Line.IsEmpty())
+			{
+				AddUniqueSoftObjectPath(Paths, FSoftObjectPath(Line));
+			}
+		}
+
+		SortSoftObjectPaths(Paths);
+		return Paths;
+	}
+
+	FString SerializeIndexedMaterialInstancePaths(TArray<FSoftObjectPath> Paths)
+	{
+		SortSoftObjectPaths(Paths);
+
+		TArray<FString> PathStrings;
+		PathStrings.Reserve(Paths.Num());
+		for (const FSoftObjectPath& Path : Paths)
+		{
+			if (!Path.IsNull())
+			{
+				PathStrings.AddUnique(Path.ToString());
+			}
+		}
+
+		PathStrings.Sort();
+		return FString::Join(PathStrings, TEXT("\n"));
+	}
+
+	void WriteIndexedMaterialInstancePaths(UTextureGraphBase* TextureGraph, const TArray<FSoftObjectPath>& MaterialInstancePaths)
+	{
+		if (!TextureGraph)
+		{
+			return;
+		}
+
+		UPackage* Package = TextureGraph->GetOutermost();
+		if (!Package)
+		{
+			return;
+		}
+
+		TextureGraph->Modify();
+
+		FMetaData& MetaData = Package->GetMetaData();
+		if (MaterialInstancePaths.IsEmpty())
+		{
+			MetaData.RemoveValue(TextureGraph, BoundMaterialInstancesMetadataKey);
+		}
+		else
+		{
+			MetaData.SetValue(TextureGraph, BoundMaterialInstancesMetadataKey, *SerializeIndexedMaterialInstancePaths(MaterialInstancePaths));
+		}
+
+		TextureGraph->MarkPackageDirty();
 	}
 
 	void RefreshMaterialInstanceEditor(UMaterialInstanceConstant* MaterialInstance, UMaterialEditorInstanceConstant* EditorInstance)
@@ -861,7 +944,7 @@ void FTextureGraphMaterialBridgeMaterialInstanceBindingService::FillMaterialInst
 		NAME_None,
 		LOCTEXT("BindTextureGraphToolbarLabel", "Texture Graph"),
 		LOCTEXT("BindTextureGraphToolbarToolTip", "Bind a Material Instance texture parameter to a Texture Graph output."),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.TextureGraph"));
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Link"));
 }
 
 TArray<FMaterialParameterInfo> FTextureGraphMaterialBridgeMaterialInstanceBindingService::ListEligibleTextureParameters(UMaterialInstanceConstant* MaterialInstance) const
@@ -922,7 +1005,7 @@ void FTextureGraphMaterialBridgeMaterialInstanceBindingService::OpenBindingDialo
 	BindTextureGraphOutput(MaterialInstance, ParameterInfo, TextureGraph, OutputName, nullptr, nullptr);
 }
 
-TArray<FSoftObjectPath> FTextureGraphMaterialBridgeMaterialInstanceBindingService::FindBoundMaterialInstancePaths(const UTextureGraphBase* TextureGraph) const
+TArray<FSoftObjectPath> FTextureGraphMaterialBridgeMaterialInstanceBindingService::ReadIndexedMaterialInstancePaths(const UTextureGraphBase* TextureGraph) const
 {
 	TArray<FSoftObjectPath> MaterialInstancePaths;
 	if (!TextureGraph)
@@ -930,56 +1013,163 @@ TArray<FSoftObjectPath> FTextureGraphMaterialBridgeMaterialInstanceBindingServic
 		return MaterialInstancePaths;
 	}
 
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-
-	TArray<FName> ReferencerPackages;
-	AssetRegistry.GetReferencers(
-		TextureGraph->GetOutermost()->GetFName(),
-		ReferencerPackages,
-		UE::AssetRegistry::EDependencyCategory::Package,
-		UE::AssetRegistry::EDependencyQuery::Hard | UE::AssetRegistry::EDependencyQuery::Soft);
-
-	for (const FName ReferencerPackage : ReferencerPackages)
+	if (UPackage* Package = TextureGraph->GetOutermost())
 	{
-		TArray<FAssetData> AssetsInPackage;
-		if (!AssetRegistry.GetAssetsByPackageName(ReferencerPackage, AssetsInPackage))
+		FMetaData& MetaData = Package->GetMetaData();
+		if (const FString* IndexedPaths = MetaData.FindValue(TextureGraph, BoundMaterialInstancesMetadataKey))
 		{
-			continue;
-		}
-
-		for (const FAssetData& AssetData : AssetsInPackage)
-		{
-			if (!AssetData.IsInstanceOf(UMaterialInstanceConstant::StaticClass()))
+			for (const FSoftObjectPath& MaterialInstancePath : ParseIndexedMaterialInstancePaths(*IndexedPaths))
 			{
-				continue;
-			}
-
-			UMaterialInstanceConstant* MaterialInstance = Cast<UMaterialInstanceConstant>(AssetData.GetAsset());
-			const UTextureGraphMaterialInstanceBindingsAssetUserData* Bindings = GetBindingsUserData(MaterialInstance, false);
-			if (Bindings && Bindings->ReferencesTextureGraph(TextureGraph))
-			{
-				MaterialInstancePaths.AddUnique(AssetData.ToSoftObjectPath());
+				AddUniqueSoftObjectPath(MaterialInstancePaths, MaterialInstancePath);
 			}
 		}
 	}
 
+	if (const TSet<FSoftObjectPath>* SessionPaths = SessionBoundMaterialInstanceIndex.Find(FSoftObjectPath(TextureGraph)))
+	{
+		for (const FSoftObjectPath& MaterialInstancePath : *SessionPaths)
+		{
+			AddUniqueSoftObjectPath(MaterialInstancePaths, MaterialInstancePath);
+		}
+	}
+
+	SortSoftObjectPaths(MaterialInstancePaths);
 	return MaterialInstancePaths;
+}
+
+void FTextureGraphMaterialBridgeMaterialInstanceBindingService::AddMaterialInstanceToTextureGraphIndex(UTextureGraphBase* TextureGraph, const FSoftObjectPath& MaterialInstancePath) const
+{
+	if (!TextureGraph || MaterialInstancePath.IsNull())
+	{
+		return;
+	}
+
+	const FSoftObjectPath TextureGraphPath(TextureGraph);
+	TArray<FSoftObjectPath> MaterialInstancePaths = ReadIndexedMaterialInstancePaths(TextureGraph);
+	AddUniqueSoftObjectPath(MaterialInstancePaths, MaterialInstancePath);
+	SortSoftObjectPaths(MaterialInstancePaths);
+
+	SessionBoundMaterialInstanceIndex.FindOrAdd(TextureGraphPath).Add(MaterialInstancePath);
+	WriteIndexedMaterialInstancePaths(TextureGraph, MaterialInstancePaths);
+
+	UE_LOG(
+		LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+		Verbose,
+		TEXT("Indexed Material Instance '%s' for Texture Graph '%s'. Indexed count: %d."),
+		*MaterialInstancePath.ToString(),
+		*TextureGraph->GetPathName(),
+		MaterialInstancePaths.Num());
+}
+
+void FTextureGraphMaterialBridgeMaterialInstanceBindingService::RemoveMaterialInstanceFromSessionIndex(const FSoftObjectPath& TextureGraphPath, const FSoftObjectPath& MaterialInstancePath) const
+{
+	if (TSet<FSoftObjectPath>* SessionPaths = SessionBoundMaterialInstanceIndex.Find(TextureGraphPath))
+	{
+		SessionPaths->Remove(MaterialInstancePath);
+		if (SessionPaths->IsEmpty())
+		{
+			SessionBoundMaterialInstanceIndex.Remove(TextureGraphPath);
+		}
+	}
+}
+
+void FTextureGraphMaterialBridgeMaterialInstanceBindingService::RemoveMaterialInstanceFromTextureGraphIndex(UTextureGraphBase* TextureGraph, const FSoftObjectPath& MaterialInstancePath) const
+{
+	if (!TextureGraph || MaterialInstancePath.IsNull())
+	{
+		return;
+	}
+
+	const FSoftObjectPath TextureGraphPath(TextureGraph);
+	RemoveMaterialInstanceFromSessionIndex(TextureGraphPath, MaterialInstancePath);
+
+	TArray<FSoftObjectPath> MaterialInstancePaths = ReadIndexedMaterialInstancePaths(TextureGraph);
+	const int32 RemovedCount = MaterialInstancePaths.Remove(MaterialInstancePath);
+	if (RemovedCount <= 0)
+	{
+		return;
+	}
+
+	SortSoftObjectPaths(MaterialInstancePaths);
+	WriteIndexedMaterialInstancePaths(TextureGraph, MaterialInstancePaths);
+
+	UE_LOG(
+		LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+		Verbose,
+		TEXT("Removed Material Instance '%s' from Texture Graph '%s' binding index. Indexed count: %d."),
+		*MaterialInstancePath.ToString(),
+		*TextureGraph->GetPathName(),
+		MaterialInstancePaths.Num());
+}
+
+bool FTextureGraphMaterialBridgeMaterialInstanceBindingService::MaterialInstanceReferencesTextureGraph(UMaterialInstanceConstant* MaterialInstance, const UTextureGraphBase* TextureGraph) const
+{
+	const UTextureGraphMaterialInstanceBindingsAssetUserData* Bindings = GetBindingsUserData(MaterialInstance, false);
+	return Bindings && Bindings->ReferencesTextureGraph(TextureGraph);
+}
+
+TArray<FSoftObjectPath> FTextureGraphMaterialBridgeMaterialInstanceBindingService::FindBoundMaterialInstancePaths(const UTextureGraphBase* TextureGraph) const
+{
+	TArray<FSoftObjectPath> VerifiedMaterialInstancePaths;
+	if (!TextureGraph)
+	{
+		UE_LOG(LogTextureGraphMaterialBridgeMaterialInstanceBindings, Warning, TEXT("FindBoundMaterialInstancePaths called with no Texture Graph."));
+		return VerifiedMaterialInstancePaths;
+	}
+
+	const TArray<FSoftObjectPath> IndexedMaterialInstancePaths = ReadIndexedMaterialInstancePaths(TextureGraph);
+	for (const FSoftObjectPath& MaterialInstancePath : IndexedMaterialInstancePaths)
+	{
+		UMaterialInstanceConstant* MaterialInstance = Cast<UMaterialInstanceConstant>(MaterialInstancePath.TryLoad());
+		if (MaterialInstanceReferencesTextureGraph(MaterialInstance, TextureGraph))
+		{
+			AddUniqueSoftObjectPath(VerifiedMaterialInstancePaths, MaterialInstancePath);
+		}
+	}
+
+	SortSoftObjectPaths(VerifiedMaterialInstancePaths);
+
+	UE_LOG(
+		LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+		Log,
+		TEXT("TextureGraphMaterialBridge found %d indexed Material Instance binding(s) for Texture Graph '%s' (%d indexed path(s))."),
+		VerifiedMaterialInstancePaths.Num(),
+		*TextureGraph->GetPathName(),
+		IndexedMaterialInstancePaths.Num());
+
+	return VerifiedMaterialInstancePaths;
 }
 
 void FTextureGraphMaterialBridgeMaterialInstanceBindingService::RefreshBindingsForTextureGraph(UTextureGraphBase* TextureGraph, const TArray<FSoftObjectPath>& MaterialInstancePaths) const
 {
 	if (!TextureGraph)
 	{
+		UE_LOG(
+			LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+			Warning,
+			TEXT("RefreshBindingsForTextureGraph called with no Texture Graph."));
 		return;
 	}
 
+	UE_LOG(
+		LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+		Log,
+		TEXT("Refreshing Texture Graph bindings after save. Graph='%s' IndexedMaterialInstances=%d."),
+		*TextureGraph->GetPathName(),
+		MaterialInstancePaths.Num());
+
+	int32 RefreshedBindingCount = 0;
 	for (const FSoftObjectPath& MaterialInstancePath : MaterialInstancePaths)
 	{
 		UMaterialInstanceConstant* MaterialInstance = Cast<UMaterialInstanceConstant>(MaterialInstancePath.TryLoad());
 		UTextureGraphMaterialInstanceBindingsAssetUserData* Bindings = GetBindingsUserData(MaterialInstance, false);
 		if (!Bindings)
 		{
+			UE_LOG(
+				LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+				Verbose,
+				TEXT("Skipping indexed Material Instance '%s' because it could not be loaded or has no Texture Graph binding data."),
+				*MaterialInstancePath.ToString());
 			continue;
 		}
 
@@ -992,11 +1182,30 @@ void FTextureGraphMaterialBridgeMaterialInstanceBindingService::RefreshBindingsF
 			}
 		}
 
+		if (!BindingsToRebuild.IsEmpty())
+		{
+			UE_LOG(
+				LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+				Verbose,
+				TEXT("Material Instance '%s' has %d Texture Graph binding(s) to refresh."),
+				*MaterialInstance->GetPathName(),
+				BindingsToRebuild.Num());
+		}
+
 		for (const FTextureGraphMaterialInstanceParameterBinding& Binding : BindingsToRebuild)
 		{
 			RefreshBinding(MaterialInstance, Binding);
+			++RefreshedBindingCount;
 		}
 	}
+
+	UE_LOG(
+		LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+		Log,
+		TEXT("TextureGraphMaterialBridge refreshed %d Material Instance binding(s) across %d indexed Material Instance(s) for Texture Graph '%s'."),
+		RefreshedBindingCount,
+		MaterialInstancePaths.Num(),
+		*TextureGraph->GetPathName());
 }
 
 void FTextureGraphMaterialBridgeMaterialInstanceBindingService::HandleGenerateGlobalRowExtension(const FOnGenerateGlobalRowExtensionArgs& Args, TArray<FPropertyRowExtensionButton>& OutExtensions)
@@ -1087,14 +1296,37 @@ void FTextureGraphMaterialBridgeMaterialInstanceBindingService::BindTextureGraph
 {
 	if (!MaterialInstance || !TextureGraph || OutputName.IsNone())
 	{
+		UE_LOG(
+			LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+			Warning,
+			TEXT("BindTextureGraphOutput aborted. MaterialInstance=%s TextureGraph=%s Output='%s'"),
+			MaterialInstance ? *MaterialInstance->GetPathName() : TEXT("None"),
+			TextureGraph ? *TextureGraph->GetPathName() : TEXT("None"),
+			*OutputName.ToString());
 		return;
 	}
+
+	UE_LOG(
+		LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+		Verbose,
+		TEXT("Binding Material Instance '%s' parameter '%s' to Texture Graph '%s' output '%s'."),
+		*MaterialInstance->GetPathName(),
+		*ParameterInfo.Name.ToString(),
+		*TextureGraph->GetPathName(),
+		*OutputName.ToString());
 
 	FName CanonicalOutputName = NAME_None;
 	UTexture* ExportedTexture = nullptr;
 	FString ErrorMessage;
 	if (!ResolveExistingTextureGraphExport(TextureGraph, OutputName, CanonicalOutputName, ExportedTexture, ErrorMessage))
 	{
+		UE_LOG(
+			LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+			Warning,
+			TEXT("Existing exported texture resolve failed while binding. Graph='%s' Output='%s' Error='%s'"),
+			*TextureGraph->GetPathName(),
+			*OutputName.ToString(),
+			*ErrorMessage);
 		ShowBindingNotification(FText::FromString(ErrorMessage), SNotificationItem::CS_Fail);
 		return;
 	}
@@ -1116,8 +1348,40 @@ void FTextureGraphMaterialBridgeMaterialInstanceBindingService::BindTextureGraph
 		return;
 	}
 
+	const FSoftObjectPath MaterialInstancePath(MaterialInstance);
+	FSoftObjectPath PreviousTextureGraphPath;
+	if (const FTextureGraphMaterialInstanceParameterBinding* ExistingBinding = Bindings->FindBinding(ParameterInfo))
+	{
+		PreviousTextureGraphPath = ExistingBinding->TextureGraphPath;
+	}
+
 	Bindings->AddOrUpdateBinding(Binding);
 	MaterialInstance->MarkPackageDirty();
+	AddMaterialInstanceToTextureGraphIndex(TextureGraph, MaterialInstancePath);
+
+	if (!PreviousTextureGraphPath.IsNull() && PreviousTextureGraphPath != Binding.TextureGraphPath)
+	{
+		if (UTextureGraphBase* PreviousTextureGraph = Cast<UTextureGraphBase>(PreviousTextureGraphPath.TryLoad()))
+		{
+			if (!MaterialInstanceReferencesTextureGraph(MaterialInstance, PreviousTextureGraph))
+			{
+				RemoveMaterialInstanceFromTextureGraphIndex(PreviousTextureGraph, MaterialInstancePath);
+			}
+		}
+		else
+		{
+			RemoveMaterialInstanceFromSessionIndex(PreviousTextureGraphPath, MaterialInstancePath);
+		}
+	}
+
+	UE_LOG(
+		LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+		Log,
+		TEXT("Bound Material Instance '%s' parameter '%s' to Texture Graph '%s' output '%s'."),
+		*MaterialInstance->GetPathName(),
+		*ParameterInfo.Name.ToString(),
+		*TextureGraph->GetPathName(),
+		*Binding.OutputName.ToString());
 
 	ExportedTexture->UpdateResource();
 	ApplyExportedTextureToMaterialInstance(MaterialInstance, ParameterInfo, ExportedTexture, TextureParameter, EditorInstance);
@@ -1137,6 +1401,15 @@ void FTextureGraphMaterialBridgeMaterialInstanceBindingService::RefreshBinding(
 {
 	if (!MaterialInstance || !Binding.bEnabled)
 	{
+		UE_LOG(
+			LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+			Warning,
+			TEXT("RefreshBinding aborted. MaterialInstance=%s Enabled=%s Parameter='%s' GraphPath='%s' Output='%s'"),
+			MaterialInstance ? *MaterialInstance->GetPathName() : TEXT("None"),
+			Binding.bEnabled ? TEXT("true") : TEXT("false"),
+			*Binding.ParameterInfo.Name.ToString(),
+			*Binding.TextureGraphPath.ToString(),
+			*Binding.OutputName.ToString());
 		return;
 	}
 
@@ -1144,6 +1417,12 @@ void FTextureGraphMaterialBridgeMaterialInstanceBindingService::RefreshBinding(
 	if (!TextureGraph)
 	{
 		const FString ErrorMessage = FString::Printf(TEXT("Could not load Texture Graph '%s'."), *Binding.TextureGraphPath.ToString());
+		UE_LOG(
+			LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+			Warning,
+			TEXT("RefreshBinding could not load Texture Graph. MaterialInstance='%s' GraphPath='%s'"),
+			*MaterialInstance->GetPathName(),
+			*Binding.TextureGraphPath.ToString());
 		UpdateBindingStatus(MaterialInstance, Binding.ParameterInfo, ETextureGraphMaterialInstanceBindingStatus::Error, ErrorMessage);
 		ShowBindingNotification(FText::FromString(ErrorMessage), SNotificationItem::CS_Fail);
 		return;
@@ -1154,6 +1433,14 @@ void FTextureGraphMaterialBridgeMaterialInstanceBindingService::RefreshBinding(
 	FString ErrorMessage;
 	if (!ResolveExistingTextureGraphExport(TextureGraph, Binding.OutputName, CanonicalOutputName, ExportedTexture, ErrorMessage))
 	{
+		UE_LOG(
+			LogTextureGraphMaterialBridgeMaterialInstanceBindings,
+			Warning,
+			TEXT("RefreshBinding failed to resolve existing exported texture. MaterialInstance='%s' Graph='%s' Output='%s' Error='%s'"),
+			*MaterialInstance->GetPathName(),
+			*TextureGraph->GetPathName(),
+			*Binding.OutputName.ToString(),
+			*ErrorMessage);
 		UpdateBindingStatus(MaterialInstance, Binding.ParameterInfo, ETextureGraphMaterialInstanceBindingStatus::Error, ErrorMessage);
 		ShowBindingNotification(FText::FromString(ErrorMessage), SNotificationItem::CS_Fail);
 		return;
@@ -1173,7 +1460,7 @@ void FTextureGraphMaterialBridgeMaterialInstanceBindingService::RefreshBinding(
 
 	UE_LOG(
 		LogTextureGraphMaterialBridgeMaterialInstanceBindings,
-		Log,
+		Verbose,
 		TEXT("Refreshing Material Instance '%s' parameter '%s' from Texture Graph '%s' output '%s' existing exported texture '%s'."),
 		*MaterialInstance->GetPathName(),
 		*Binding.ParameterInfo.Name.ToString(),
@@ -1206,8 +1493,14 @@ void FTextureGraphMaterialBridgeMaterialInstanceBindingService::ClearBinding(
 	const FScopedTransaction Transaction(LOCTEXT("ClearTextureGraphOutputBindingTransaction", "Clear Texture Graph Material Instance Binding"));
 
 	bool bRemovedBinding = false;
+	FSoftObjectPath RemovedTextureGraphPath;
 	if (UTextureGraphMaterialInstanceBindingsAssetUserData* Bindings = GetBindingsUserData(MaterialInstance, false))
 	{
+		if (const FTextureGraphMaterialInstanceParameterBinding* ExistingBinding = Bindings->FindBinding(ParameterInfo))
+		{
+			RemovedTextureGraphPath = ExistingBinding->TextureGraphPath;
+		}
+
 		MaterialInstance->Modify();
 		bRemovedBinding = Bindings->RemoveBinding(ParameterInfo);
 		if (Bindings->IsEmpty())
@@ -1221,6 +1514,22 @@ void FTextureGraphMaterialBridgeMaterialInstanceBindingService::ClearBinding(
 
 	if (bRemovedBinding)
 	{
+		const FSoftObjectPath MaterialInstancePath(MaterialInstance);
+		if (!RemovedTextureGraphPath.IsNull())
+		{
+			if (UTextureGraphBase* RemovedTextureGraph = Cast<UTextureGraphBase>(RemovedTextureGraphPath.TryLoad()))
+			{
+				if (!MaterialInstanceReferencesTextureGraph(MaterialInstance, RemovedTextureGraph))
+				{
+					RemoveMaterialInstanceFromTextureGraphIndex(RemovedTextureGraph, MaterialInstancePath);
+				}
+			}
+			else
+			{
+				RemoveMaterialInstanceFromSessionIndex(RemovedTextureGraphPath, MaterialInstancePath);
+			}
+		}
+
 		ShowBindingNotification(
 			FText::Format(LOCTEXT("TextureGraphBindingClearedNotification", "Cleared Texture Graph binding for {0}."), FText::FromName(ParameterInfo.Name)),
 			SNotificationItem::CS_Success);

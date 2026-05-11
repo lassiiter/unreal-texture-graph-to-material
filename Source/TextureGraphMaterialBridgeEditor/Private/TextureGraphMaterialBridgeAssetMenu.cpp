@@ -7,6 +7,7 @@
 #include "MaterialEditorContext.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Misc/DelayedAutoRegister.h"
+#include "Styling/AppStyle.h"
 #include "TextureGraph.h"
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
@@ -118,7 +119,7 @@ namespace TextureGraphMaterialBridgeAssetMenu
 			const TAttribute<FText> Label = LOCTEXT("BindTextureGraphOutputLabel", "Bind Texture Graph Output");
 			const TAttribute<FText> ToolTip = LOCTEXT("BindTextureGraphOutputToolTip", "Bind a standard 2D texture parameter on this Material Instance to a Texture Graph output.");
 			const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&ExecuteBindTextureGraphOutput);
-			InSection.AddMenuEntry("TextureGraphMaterialBridge_BindTextureGraphOutput", Label, ToolTip, FSlateIcon(), UIAction);
+			InSection.AddMenuEntry("TextureGraphMaterialBridge_BindTextureGraphOutput", Label, ToolTip, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Link"), UIAction);
 		}));
 	}
 
@@ -130,7 +131,7 @@ namespace TextureGraphMaterialBridgeAssetMenu
 		const TAttribute<FText> Label = LOCTEXT("BindTextureGraphToolbarLabel", "Texture Graph");
 		const TAttribute<FText> ToolTip = LOCTEXT("BindTextureGraphToolbarToolTip", "Bind a Material Instance texture parameter to a Texture Graph output.");
 		const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&ExecuteBindTextureGraphOutputFromMaterialInstanceEditor);
-		Section.AddEntry(FToolMenuEntry::InitToolBarButton("TextureGraphMaterialBridge_BindTextureGraphOutput", UIAction, Label, ToolTip, FSlateIcon()));
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton("TextureGraphMaterialBridge_BindTextureGraphOutput", UIAction, Label, ToolTip, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Link")));
 	}
 
 	static FDelayedAutoRegisterHelper DelayedAutoRegister(EDelayedRegisterRunPhase::EndOfEngineInit, []

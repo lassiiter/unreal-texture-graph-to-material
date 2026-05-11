@@ -32,7 +32,13 @@ private:
 	void BindTextureGraphOutput(UMaterialInstanceConstant* MaterialInstance, const FMaterialParameterInfo& ParameterInfo, UTextureGraphBase* TextureGraph, FName OutputName, UDEditorTextureParameterValue* TextureParameter, UMaterialEditorInstanceConstant* EditorInstance) const;
 	void RefreshBinding(UMaterialInstanceConstant* MaterialInstance, const FTextureGraphMaterialInstanceParameterBinding& Binding, UDEditorTextureParameterValue* TextureParameter = nullptr, UMaterialEditorInstanceConstant* EditorInstance = nullptr) const;
 	void ClearBinding(UMaterialInstanceConstant* MaterialInstance, const FMaterialParameterInfo& ParameterInfo, UDEditorTextureParameterValue* TextureParameter, UMaterialEditorInstanceConstant* EditorInstance) const;
+	TArray<FSoftObjectPath> ReadIndexedMaterialInstancePaths(const UTextureGraphBase* TextureGraph) const;
+	void AddMaterialInstanceToTextureGraphIndex(UTextureGraphBase* TextureGraph, const FSoftObjectPath& MaterialInstancePath) const;
+	void RemoveMaterialInstanceFromTextureGraphIndex(UTextureGraphBase* TextureGraph, const FSoftObjectPath& MaterialInstancePath) const;
+	void RemoveMaterialInstanceFromSessionIndex(const FSoftObjectPath& TextureGraphPath, const FSoftObjectPath& MaterialInstancePath) const;
+	bool MaterialInstanceReferencesTextureGraph(UMaterialInstanceConstant* MaterialInstance, const UTextureGraphBase* TextureGraph) const;
 
 	FDelegateHandle RowExtensionHandle;
 	FDelegateHandle MaterialEditorToolbarExtenderHandle;
+	mutable TMap<FSoftObjectPath, TSet<FSoftObjectPath>> SessionBoundMaterialInstanceIndex;
 };
