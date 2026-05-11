@@ -1,3 +1,5 @@
+#if TGMB_WITH_DESIGNER_NODES
+
 #include "TextureGraphMaterialBridgeDesignerTransforms.h"
 
 #include "2D/TextureHelper.h"
@@ -1135,3 +1137,5 @@ TiledBlobPtr FDesignerTransforms::CreateTileGenerator(
 		return Result;
 	}
 }
+
+#endif

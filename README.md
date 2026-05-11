@@ -44,12 +44,45 @@ The plugin adds the following GPU-backed, Designer-style nodes:
 | Category | Nodes |
 | --- | --- |
 | Base Pattern & Scattering | Tile Generator, Tile Sampler, Shape Splatter |
-| Flood Fill & Converters | Flood Fill, Flood Fill to Random Grayscale, Flood Fill to Random Color, Flood Fill to Gradient, Flood Fill to Position, Flood Fill Mapper |
+| Flood Fill & Converters | Flood Fill, Flood Fill to Random Grayscale, Flood Fill to Random Color, Flood Fill to Gradient, Flood Fill to Position, Flood Fill to BBox Size, Flood Fill Mapper |
 | Noise & Grunge | Cells 1, Cells 2, Cells 3, Cells 4, Clouds 2, BnW Spots, Grunge Dirt |
 | Warping & Distance | Multi Directional Warp, Non-Uniform Directional Warp, Directional Distance |
 | Filters & Blur | Blur HQ, Slope Blur, Gradient Map, Highpass, Luminance Highpass |
 | Normal & Surface Details | Bevel, Ambient Occlusion HBAO, Curvature Smooth, Curvature Sobel, Normal Combine |
 | Blending | Multi-Material Blend |
+
+## Creating a Texture Graph Node
+
+Most Designer-style nodes in this plugin follow a small, repeatable path: add a `UTG_Expression_TGMB_*` class, pass its pins and settings into a transform, bind that transform to a global shader, then implement the shader entry point.
+
+When adding a node, start by choosing the closest existing pattern:
+
+- **Texture filters** read one or more `FTG_Texture` inputs and write one output. Examples: Highpass, Bevel, Slope Blur.
+- **Generators** create an output from settings alone. Examples: Clouds 2, Cells 1, Tile Generator.
+- **Multi-input adjustments** combine several texture inputs. Examples: Normal Combine, Multi-Material Blend.
+- **Multi-output/data nodes** produce an intermediate data texture plus user-facing outputs. Examples: Flood Fill and Curvature Smooth.
+
+Keep the main pieces synchronized:
+
+1. Add the expression class, pins, settings, title, and tooltip in `Source/TextureGraphMaterialBridge/Public/TextureGraphMaterialBridgeDesignerExpressions.h`.
+2. Implement `Evaluate` in `Source/TextureGraphMaterialBridge/Private/TextureGraphMaterialBridgeDesignerExpressions.cpp`. The expression should call a named `UE::TextureGraphMaterialBridge::FDesignerTransforms::Create*` helper and pass `InContext->Cycle`, the output descriptor, `InContext->TargetId`, input `RasterBlob`s, and settings.
+3. Declare the shader wrapper class and `FDesignerTransforms::Create*` function in `Source/TextureGraphMaterialBridge/Private/TextureGraphMaterialBridgeDesignerTransforms.h`.
+4. Add the `IMPLEMENT_GLOBAL_SHADER` entry and transform implementation in `Source/TextureGraphMaterialBridge/Private/TextureGraphMaterialBridgeDesignerTransforms.cpp`. Use local helpers such as `CombineIfNeeded`, `BuildOutputDesc`, `CreateShaderJob`, `TextureHelper::GetBlack()`, and `JobArg_ForceTiling` where they match the surrounding node pattern.
+5. Add the HLSL entry point in `Shaders/Expressions/TGMB_DesignerNodes.usf`, and put shared reusable shader helpers in `Shaders/TGMB_DesignerCommon.ush` only when multiple shaders benefit.
+
+The C++ shader parameter names in `AddArg(...)` calls must match the HLSL globals exactly. After wiring a node, search for the suffix across `Source` and `Shaders` to confirm the expression, transform declaration, transform implementation, `IMPLEMENT_GLOBAL_SHADER`, and shader function all exist. Then run the build script when the local Unreal paths are available:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "scripts\Build-TextureGraphMaterialBridgeInProject.ps1"
+```
+
+### How Deep Can a Node Go?
+
+A simple node can be only a Texture Graph expression plus a single pixel shader job. The system can also go much deeper when the node needs custom GPU orchestration.
+
+Flood Fill is the current deep example. The `UTG_Expression_TGMB_FloodFill` node exposes normal user settings such as threshold, connectivity, output mode, seed, and gradient angle, but its `Evaluate` function first creates a hidden `FloodFillData` texture and then renders the selected visible output from that data. Under the hood, `CreateFloodFillData` uses a custom compute `FxMaterial` instead of the usual one-pass pixel shader path. It allocates structured buffers for labels and bounds, dispatches several compute kernels from `Shaders/Expressions/TGMB_FloodFillCompute.usf`, and writes a float RGBA data texture where each active pixel stores its connected region bounds.
+
+That data texture then becomes a reusable contract for cheaper converter nodes. `Flood Fill to Random Grayscale`, `Random Color`, `Gradient`, `Position`, `BBox Size`, and `Mapper` all read the same encoded bounds through pixel shaders in `TGMB_DesignerNodes.usf`. This means a node can scale from a lightweight shader wrapper all the way to a multi-pass compute pipeline with intermediate buffers, custom result descriptors, non-tiled execution, and companion nodes that consume its data.
 
 ### Out of Scope
 

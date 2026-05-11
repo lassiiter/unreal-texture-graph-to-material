@@ -1,9 +1,12 @@
 #include "TextureGraphMaterialBridgeDesignerExpressions.h"
 
+#if TGMB_WITH_DESIGNER_NODES
 #include "TextureGraphMaterialBridgeDesignerTransforms.h"
+#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TextureGraphMaterialBridgeDesignerExpressions)
 
+#if TGMB_WITH_DESIGNER_NODES
 namespace
 {
 	UE::TextureGraphMaterialBridge::FGradientMapSettings BuildGradientMapSettings(const UTG_Expression_TGMB_GradientMap& Expression)
@@ -40,7 +43,9 @@ namespace
 	}
 }
 
+#endif
 
+#if TGMB_WITH_DESIGNER_NODES
 void UTG_Expression_TGMB_FloodFillToRandomGrayscale::Evaluate(FTG_EvaluationContext* InContext) {
 	Super::Evaluate(InContext);
 	Output = UE::TextureGraphMaterialBridge::FDesignerTransforms::CreateFloodFillToRandomGrayscale(InContext->Cycle, Output.GetBufferDescriptor(), InContext->TargetId, Source.RasterBlob, Seed);
@@ -465,3 +470,74 @@ void UTG_Expression_TGMB_MultiMaterialBlend::Evaluate(FTG_EvaluationContext* InC
 		3,
 		NormalStrength);
 }
+#else
+namespace
+{
+	void ClearTextureOutput(FTG_Texture& Texture)
+	{
+		Texture = FTG_Texture();
+	}
+}
+
+#define TGMB_EMPTY_OUTPUT_EVALUATE(ExpressionType, OutputMember) \
+	void ExpressionType::Evaluate(FTG_EvaluationContext* InContext) \
+	{ \
+		Super::Evaluate(InContext); \
+		ClearTextureOutput(OutputMember); \
+	}
+
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_FloodFillToRandomGrayscale, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_FloodFillToRandomColor, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_FloodFillToGradient, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_FloodFillToPosition, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_FloodFillToBBoxSize, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_FloodFillMapper, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_MultiDirectionalWarp, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_NonUniformDirectionalWarp, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_DirectionalDistance, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_ShapeSplatter, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_Cells1, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_Cells2, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_Cells3, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_Cells4, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_Clouds2, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_BnWSpots, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_GrungeDirt, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_Highpass, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_LuminanceHighpass, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_BlurHQ, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_CurvatureSobel, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_TileGenerator, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_TileSampler, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_GradientMap, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_NormalCombine, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_SlopeBlur, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_Bevel, Output)
+TGMB_EMPTY_OUTPUT_EVALUATE(UTG_Expression_TGMB_AmbientOcclusionHBAO, Output)
+
+#undef TGMB_EMPTY_OUTPUT_EVALUATE
+
+void UTG_Expression_TGMB_FloodFill::Evaluate(FTG_EvaluationContext* InContext)
+{
+	Super::Evaluate(InContext);
+	ClearTextureOutput(FloodFillData);
+	ClearTextureOutput(Output);
+}
+
+void UTG_Expression_TGMB_CurvatureSmooth::Evaluate(FTG_EvaluationContext* InContext)
+{
+	Super::Evaluate(InContext);
+	ClearTextureOutput(Curvature);
+	ClearTextureOutput(Convex);
+	ClearTextureOutput(Concave);
+}
+
+void UTG_Expression_TGMB_MultiMaterialBlend::Evaluate(FTG_EvaluationContext* InContext)
+{
+	Super::Evaluate(InContext);
+	ClearTextureOutput(BaseColor);
+	ClearTextureOutput(Normal);
+	ClearTextureOutput(ORM);
+	ClearTextureOutput(Height);
+}
+#endif
