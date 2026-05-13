@@ -53,6 +53,23 @@ The plugin adds the following GPU-backed, Designer-style nodes:
 
 ## Creating a Texture Graph Node
 
+Start node work with the local agent skill at `skills/add-tgmb-node/SKILL.md`. The skill is the checklist an agent should follow when turning a natural-language node request into a complete Texture Graph expression, transform, and shader implementation.
+
+### Agentic Skill Flow
+
+1. Convert the request into a node spec: display name, C++ suffix, category, tooltip, input pins, output pins, settings, defaults, clamp ranges, shader behavior, fallback behavior, and tiling expectations.
+2. Read `skills/add-tgmb-node/references/project-patterns.md`, then inspect the closest existing node before editing.
+3. Choose the nearest local pattern:
+   - Texture filter: source texture plus one output, like Highpass, Bevel, or Slope Blur.
+   - Generator: settings-only output, like Clouds 2, Cells 1, or Tile Generator.
+   - Multi-input blend: several source textures, like Normal Combine or Multi-Material Blend.
+   - Multi-output node: one expression evaluates multiple transform outputs, like Flood Fill or Curvature Smooth.
+4. Edit the shared designer-node files unless the request explicitly calls for a new layout.
+5. Keep the expression, transform declaration, transform implementation, shader wrapper, `IMPLEMENT_GLOBAL_SHADER`, and HLSL entry point wired together with matching names.
+6. Validate by searching for the new suffix across `Source` and `Shaders`, then run the Unreal build script when the local Unreal paths are available.
+
+### Implementation Details
+
 Most Designer-style nodes in this plugin follow a small, repeatable path: add a `UTG_Expression_TGMB_*` class, pass its pins and settings into a transform, bind that transform to a global shader, then implement the shader entry point.
 
 When adding a node, start by choosing the closest existing pattern:
