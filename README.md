@@ -17,30 +17,6 @@ The plugin adds material expression nodes for Texture Graph outputs, refreshes l
 
 The plugin adds UE-native, Designer-style Texture Graph nodes for common material-authoring workflows, complementing what Unreal already provides out-of-the-box.
 
-### Native UE Equivalents
-
-Do not look for the following nodes in this plugin; Unreal Engine's Texture Graph natively provides their equivalents:
-
-| Designer-style node | Native Texture Graph equivalent |
-| --- | --- |
-| Blend | `Blend` / `Math` nodes |
-| Levels | `Levels` |
-| Transform | `Transform` |
-| Uniform Color | `Color` / `Vector` constants |
-| Output | `Output` |
-| Histogram Scan / Range | `Histogram` |
-| Invert | `Invert` / `OneMinus` |
-| Edge Detect | `Edge Detect` |
-| Shape | `Shape` |
-| Perlin Noise | `Noise` nodes |
-| Warp / Directional Warp | `Warp` |
-| Blur | `Blur` |
-| Normal From Height | `Normal From Height` |
-
-### Plugin Nodes
-
-The plugin adds the following GPU-backed, Designer-style nodes:
-
 | Category | Nodes |
 | --- | --- |
 | Base Pattern & Scattering | Tile Generator, Tile Sampler, Shape Splatter |
@@ -84,14 +60,6 @@ Flood Fill is the current deep example. The `UTG_Expression_TGMB_FloodFill` node
 
 That data texture then becomes a reusable contract for cheaper converter nodes. `Flood Fill to Random Grayscale`, `Random Color`, `Gradient`, `Position`, `BBox Size`, and `Mapper` all read the same encoded bounds through pixel shaders in `TGMB_DesignerNodes.usf`. This means a node can scale from a lightweight shader wrapper all the way to a multi-pass compute pipeline with intermediate buffers, custom result descriptors, non-tiled execution, and companion nodes that consume its data.
 
-### Out of Scope
-
-The following items are intentionally out of scope for this pass:
-- Exact Substance Designer pixel parity (nodes provide useful UE-native approximations).
-- Bundled bitmap grunge libraries (grunge/dirt nodes are procedural shader-generated textures).
-- Material asset inputs.
-- Mesh-bake generators.
-
 ## Typical Workflow
 
 1. Configure Texture Graph outputs with valid export settings.
@@ -107,4 +75,4 @@ The following items are intentionally out of scope for this pass:
 
 ## Current Status
 
-This is an early plugin prototype. It focuses on the core bridge between Texture Graph exports and material graphs, with a small editor workflow for linked material creation. Documentation, validation coverage, packaging polish, and broader material mapping options are natural next steps.
+This is an early plugin. It focuses on the core bridge between Texture Graph exports and material graphs.
