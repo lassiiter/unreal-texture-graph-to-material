@@ -4,6 +4,7 @@
 #include "TextureGraphMaterialBridgeMaterialInstanceBindingService.h"
 #include "TextureGraphMaterialBridgeMaterialCreationService.h"
 #include "TextureGraphMaterialBridgeSaveService.h"
+#include "TextureGraphMaterialBridgeTextureGraphCreationService.h"
 #include "MaterialExpressionTextureGraphOutput.h"
 #include "MaterialExpressionTextureGraphSample.h"
 #include "SGraphNodeMaterialTextureGraphOutput.h"
@@ -59,6 +60,9 @@ FTextureGraphMaterialBridgeEditorModule::~FTextureGraphMaterialBridgeEditorModul
 
 	delete MaterialCreationService;
 	MaterialCreationService = nullptr;
+
+	delete TextureGraphCreationService;
+	TextureGraphCreationService = nullptr;
 }
 
 void FTextureGraphMaterialBridgeEditorModule::StartupModule()
@@ -67,6 +71,7 @@ void FTextureGraphMaterialBridgeEditorModule::StartupModule()
 	FTextureGraphMaterialBridgeEditorHooks::OnCreateTextureGraphSampleNodeWidget().BindStatic(&CreateTextureGraphSampleNodeWidget);
 
 	MaterialCreationService = new FTextureGraphMaterialBridgeMaterialCreationService();
+	TextureGraphCreationService = new FTextureGraphMaterialBridgeTextureGraphCreationService();
 
 	MaterialInstanceBindingService = new FTextureGraphMaterialBridgeMaterialInstanceBindingService();
 	MaterialInstanceBindingService->Startup();
@@ -94,6 +99,9 @@ void FTextureGraphMaterialBridgeEditorModule::ShutdownModule()
 	delete MaterialCreationService;
 	MaterialCreationService = nullptr;
 
+	delete TextureGraphCreationService;
+	TextureGraphCreationService = nullptr;
+
 	FTextureGraphMaterialBridgeEditorHooks::OnCreateTextureGraphOutputNodeWidget().Unbind();
 	FTextureGraphMaterialBridgeEditorHooks::OnCreateTextureGraphSampleNodeWidget().Unbind();
 }
@@ -108,6 +116,12 @@ FTextureGraphMaterialBridgeMaterialInstanceBindingService& FTextureGraphMaterial
 {
 	check(MaterialInstanceBindingService);
 	return *MaterialInstanceBindingService;
+}
+
+FTextureGraphMaterialBridgeTextureGraphCreationService& FTextureGraphMaterialBridgeEditorModule::GetTextureGraphCreationService()
+{
+	check(TextureGraphCreationService);
+	return *TextureGraphCreationService;
 }
 
 IMPLEMENT_MODULE(FTextureGraphMaterialBridgeEditorModule, TextureGraphMaterialBridgeEditor)

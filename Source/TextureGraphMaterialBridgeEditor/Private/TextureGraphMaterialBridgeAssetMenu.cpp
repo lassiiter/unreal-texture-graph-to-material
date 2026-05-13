@@ -2,9 +2,12 @@
 
 #include "TextureGraphMaterialBridgeMaterialInstanceBindingService.h"
 #include "TextureGraphMaterialBridgeMaterialCreationService.h"
+#include "TextureGraphMaterialBridgeTextureGraphCreationService.h"
 #include "ContentBrowserMenuContexts.h"
 #include "IMaterialEditor.h"
 #include "MaterialEditorContext.h"
+#include "Engine/Texture.h"
+#include "Engine/Texture2D.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Misc/DelayedAutoRegister.h"
 #include "Styling/AppStyle.h"
@@ -44,6 +47,25 @@ namespace TextureGraphMaterialBridgeAssetMenu
 
 		FTextureGraphMaterialBridgeEditorModule& Module = FModuleManager::LoadModuleChecked<FTextureGraphMaterialBridgeEditorModule>(TEXT("TextureGraphMaterialBridgeEditor"));
 		Module.GetMaterialCreationService().CreateLinkedMaterials(TextureGraphSources);
+	}
+
+	static void ExecuteCreateTextureGraphFromTextures(const FToolMenuContext& InContext)
+	{
+		const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InContext);
+		if (!Context)
+		{
+			return;
+		}
+
+		TArray<UTexture*> Textures = Context->LoadSelectedObjects<UTexture>();
+		if (Textures.IsEmpty())
+		{
+			UE_LOG(LogTextureGraphMaterialBridgeAssetMenu, Warning, TEXT("Create Texture Graph from Textures menu action found no selected Texture assets."));
+			return;
+		}
+
+		FTextureGraphMaterialBridgeEditorModule& Module = FModuleManager::LoadModuleChecked<FTextureGraphMaterialBridgeEditorModule>(TEXT("TextureGraphMaterialBridgeEditor"));
+		Module.GetTextureGraphCreationService().CreateTextureGraphFromTextures(Textures);
 	}
 
 	static void ExecuteBindTextureGraphOutput(const FToolMenuContext& InContext)
@@ -104,6 +126,23 @@ namespace TextureGraphMaterialBridgeAssetMenu
 		}));
 	}
 
+	static void AddCreateTextureGraphFromTexturesMenuEntry(UToolMenu* Menu)
+	{
+		FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
+		Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			if (UContentBrowserAssetContextMenuContext::FindContextWithAssets(InSection) == nullptr)
+			{
+				return;
+			}
+
+			const TAttribute<FText> Label = LOCTEXT("CreateTextureGraphFromTexturesLabel", "Create Texture Graph from Textures");
+			const TAttribute<FText> ToolTip = LOCTEXT("CreateTextureGraphFromTexturesToolTip", "Create a Texture Graph beside the selected textures and wire each selected texture into an output.");
+			const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&ExecuteCreateTextureGraphFromTextures);
+			InSection.AddMenuEntry("TextureGraphMaterialBridge_CreateTextureGraphFromTextures", Label, ToolTip, FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Texture2D"), UIAction);
+		}));
+	}
+
 	static void AddBindTextureGraphOutputMenuEntry(UToolMenu* Menu)
 	{
 		UE_LOG(LogTextureGraphMaterialBridgeAssetMenu, Log, TEXT("Registering Content Browser Bind Texture Graph Output menu entry."));
@@ -140,6 +179,7 @@ namespace TextureGraphMaterialBridgeAssetMenu
 		{
 			FToolMenuOwnerScoped OwnerScoped(UE_MODULE_NAME);
 
+			AddCreateTextureGraphFromTexturesMenuEntry(UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UTexture2D::StaticClass()));
 			AddCreateLinkedMaterialMenuEntry(UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UTextureGraph::StaticClass()));
 			AddCreateLinkedMaterialMenuEntry(UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UTextureGraphInstance::StaticClass()));
 			AddBindTextureGraphOutputMenuEntry(UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UMaterialInstanceConstant::StaticClass()));
