@@ -6,12 +6,12 @@ The plugin adds material expression nodes for Texture Graph outputs, refreshes l
 
 ## What It Does
 
-- Resolves exported Texture Graph outputs as material texture inputs.
-- Adds Texture Graph material nodes for texture object and texture sample workflows.
+- Adds 'Create Texture Graph from Textures' action to texture graph assets.
+- Adds 'Create Linked Material' action to texture graph assets.
 - Re-exports referenced Texture Graph assets on save and recompiles linked materials.
-- Creates a basic linked material beside a Texture Graph source.
-- Auto-wires common outputs such as base color, normal, emissive, ambient occlusion, roughness, and metallic.
-- Supports common ORM packing conventions for ambient occlusion, roughness, and metallic channels.
+- Adds Texture Graph material nodes for texture object and texture sample workflows.
+- Adds a new 'Bind Texture Graph' action to material instances.
+- Adds a number of Substance Designer-like nodes to Texture Graph.
 
 ## Designer-Style Texture Graph Nodes
 
