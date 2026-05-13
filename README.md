@@ -6,6 +6,7 @@ The plugin adds material expression nodes for Texture Graph outputs, refreshes l
 
 ## What It Does
 
+- Adds 'Create Texture Graph from Textures' action to texture graph assets.
 - Adds 'Create Linked Material' action to texture graph assets.
 - Re-exports referenced Texture Graph assets on save and recompiles linked materials.
 - Adds Texture Graph material nodes for texture object and texture sample workflows.
