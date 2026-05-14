@@ -1,3 +1,5 @@
+
+
 # Texture Graph Material Bridge
 
 Texture Graph Material Bridge is an Unreal Engine plugin that helps material graphs consume exported Texture Graph outputs without manually re-wiring texture assets after each export.
@@ -6,12 +8,15 @@ The plugin adds material expression nodes for Texture Graph outputs, refreshes l
 
 ## What It Does
 
-- Adds 'Create Texture Graph from Textures' action to texture graph assets.
+- Adds 'Create Texture Graph from Textures' action to texture graph assets
 - Adds 'Create Linked Material' action to texture graph assets.
 - Re-exports referenced Texture Graph assets on save and recompiles linked materials.
 - Adds Texture Graph material nodes for texture object and texture sample workflows.
 - Adds a new 'Bind Texture Graph' action to material instances.
 - Adds a number of Substance Designer-like nodes to Texture Graph.
+
+https://github.com/user-attachments/assets/fbc5718a-bda9-4171-979d-b7a3485ec543
+<p align="center">Project Overview</p>
 
 ## Designer-Style Texture Graph Nodes
 
@@ -76,13 +81,6 @@ A simple node can be only a Texture Graph expression plus a single pixel shader 
 Flood Fill is the current deep example. The `UTG_Expression_TGMB_FloodFill` node exposes normal user settings such as threshold, connectivity, output mode, seed, and gradient angle, but its `Evaluate` function first creates a hidden `FloodFillData` texture and then renders the selected visible output from that data. Under the hood, `CreateFloodFillData` uses a custom compute `FxMaterial` instead of the usual one-pass pixel shader path. It allocates structured buffers for labels and bounds, dispatches several compute kernels from `Shaders/Expressions/TGMB_FloodFillCompute.usf`, and writes a float RGBA data texture where each active pixel stores its connected region bounds.
 
 That data texture then becomes a reusable contract for cheaper converter nodes. `Flood Fill to Random Grayscale`, `Random Color`, `Gradient`, `Position`, `BBox Size`, and `Mapper` all read the same encoded bounds through pixel shaders in `TGMB_DesignerNodes.usf`. This means a node can scale from a lightweight shader wrapper all the way to a multi-pass compute pipeline with intermediate buffers, custom result descriptors, non-tiled execution, and companion nodes that consume its data.
-
-## Typical Workflow
-
-1. Configure Texture Graph outputs with valid export settings.
-2. Export or save the Texture Graph so output texture assets exist.
-3. Use the Texture Graph material nodes inside a material, or right-click a Texture Graph asset and choose **Create Linked Material**.
-4. Continue editing the Texture Graph; linked materials refresh when the graph is saved.
 
 ## Requirements
 
